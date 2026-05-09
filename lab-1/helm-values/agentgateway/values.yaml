@@ -1,0 +1,47 @@
+# -- Configure the service account for the deployment.
+serviceAccount:
+  create: true
+
+# -- Set the pod-level security context. For example, 'fsGroup: 2000' sets the filesystem group to 2000.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+# -- Set the container-level security context, such as 'runAsNonRoot: true'.
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+
+# -- Configure resource requests and limits for the container, such as 'limits.cpu: 100m' or 'requests.memory: 128Mi'.
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 300m
+    memory: 512Mi
+
+# -- Configure the agentgateway control plane deployment.
+controller:
+  # -- Set the number of controller pod replicas.
+  replicaCount: 1
+  # -- Set the log level for the controller.
+  logLevel: info
+  # -- Configure the controller service.
+  service:
+    enabled: true
+    type: ClusterIP
+    ports:
+      agwGrpc: 9978
+      health: 9093
+      metrics: 9092
+
+# -- Configure the default container image for the components that Helm deploys. You can override these settings for each particular component in that component's section, such as 'controller.image' for the agentgateway control plane. If you use your own private registry, make sure to include the imagePullSecrets.
+image:
+  registry: cr.agentgateway.dev
+  tag: "v1.1.0"
+  pullPolicy: IfNotPresent
