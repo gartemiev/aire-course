@@ -99,6 +99,7 @@ resource "kubectl_manifest" "agentgateway_route" {
       parentRefs:
       - name: ${kubectl_manifest.agentgateway_gateway[0].name}
         namespace: ${kubernetes_namespace_v1.agentgateway.metadata[0].name}
+        sectionName: http
       rules:
       - name: gemini
         matches:

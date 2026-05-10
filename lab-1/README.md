@@ -148,6 +148,35 @@ kubectl port-forward -n agentgateway-system deploy/agentgateway-external 15000:1
 
 ##########################################################################
 
+### Verify — kagent through agentgateway
+
+The default kagent `ModelConfig` is pointed at the agentgateway service, so
+every built-in agent (k8s-agent, helm-agent, istio-agent, etc.) routes its
+LLM calls through `agentgateway-external` (LLM data plane, port 80,
+agentgateway-system namespace).
+
+The kagent UI is exposed via a *separate* Gateway, `kagent-ui-gateway`, in
+the kagent namespace. Splitting LLM and UI traffic onto two Gateways means
+no listener conflicts, no cross-namespace ReferenceGrants, and an LLM-side
+restart cannot affect UI access.
+
+```bash
+# 1. Confirm the default ModelConfig is wired to agentgateway
+kubectl get modelconfig -n kagent default-model-config -o jsonpath='{.spec.openAI.baseUrl}{"\n"}'
+# Expected: http://agentgateway-external.agentgateway-system.svc.cluster.local/v1
+
+# 2. Reach the kagent UI through its dedicated Gateway proxy
+kubectl port-forward -n kagent svc/kagent-ui-gateway 8081:80
+# Open: http://127.0.0.1:8081/
+
+# 3. Confirm the call traversed agentgateway (every built-in agent invocation
+#    shows up here as an OpenAI request even though kagent never talked to
+#    api.openai.com directly).
+kubectl logs -n agentgateway-system deploy/agentgateway-external -f
+```
+
+##########################################################################
+
 ### Key rotation
 
 Increment `external_secrets_gcp_key_revision` in `variables.tf` (default value), then re-run Phase 2:

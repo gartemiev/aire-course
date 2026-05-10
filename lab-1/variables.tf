@@ -72,6 +72,47 @@ variable "agentgateway_gemini_model" {
   default     = "gemini-2.5-flash"
 }
 
+# ##### kagent #####
+variable "kagent_chart_version" {
+  type        = string
+  description = "Chart version for both kagent OCI charts (kagent-crds and kagent), published on ghcr.io/kagent-dev/kagent/helm."
+  default     = "0.9.2"
+}
+
+variable "kagent_values_file" {
+  type        = string
+  description = "Path to kagent Helm values YAML, relative to this module directory unless absolute."
+  default     = "helm-values/kagent/values.yaml"
+}
+
+# ##### kagent secrets #####
+# kagent's OPENAI_API_KEY is a static placeholder (see kagent-secrets.tf for
+# why) — there's no GCP Secret Manager key name and no ESO refresh interval
+# on this side, because the real key lives only in agentgateway-system.
+variable "kagent_openai_secret_name" {
+  type        = string
+  description = "Name of the Kubernetes Secret holding the placeholder OpenAI key in the kagent namespace. Must match providers.openAI.apiKeySecretRef in helm-values/kagent/values.yaml."
+  default     = "kagent-openai"
+}
+
+variable "kagent_openai_secret_key" {
+  type        = string
+  description = "Key inside the kagent OpenAI Secret. Must match providers.openAI.apiKeySecretKey in helm-values/kagent/values.yaml."
+  default     = "OPENAI_API_KEY"
+}
+
+variable "kagent_gemini_secret_name" {
+  type        = string
+  description = "Name of the Kubernetes Secret holding the placeholder Gemini key in the kagent namespace. Must match providers.gemini.apiKeySecretRef in helm-values/kagent/values.yaml."
+  default     = "kagent-gemini"
+}
+
+variable "kagent_gemini_secret_key" {
+  type        = string
+  description = "Key inside the kagent Gemini Secret. Must match providers.gemini.apiKeySecretKey in helm-values/kagent/values.yaml."
+  default     = "GOOGLE_API_KEY"
+}
+
 # ##### GCP #####
 variable "gcp_project" {
   type        = string

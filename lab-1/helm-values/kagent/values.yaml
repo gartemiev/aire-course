@@ -1,0 +1,306 @@
+# kagent Helm chart values
+# Chart structure: v0.9.x  -> https://github.com/kagent-dev/kagent/blob/v0.9.2/helm/kagent/values.yaml
+# Docs:                       https://kagent.dev/docs/kagent/resources/helm
+# Target environment:         minikube (single-node, default `standard` StorageClass)
+
+# ==============================================================================
+# GLOBAL CONFIGURATION
+# ==============================================================================
+
+# Pin every kagent-published image (controller, ui, app/agent runner, skills-init)
+# to the chart appVersion so the deploy is reproducible.
+# The templates resolve the image tag as:
+#   coalesce .Values.tag .Values.<component>.image.tag .Chart.Version
+# so setting it once at the top is enough for all of them.
+tag: "0.9.2"
+registry: "cr.kagent.dev"
+imagePullPolicy: IfNotPresent
+
+# Secure-by-default per the chart authors (kagent-dev/kagent#1468).
+# These are merged into the controller and UI deployments only — the bundled
+# PostgreSQL has its own block (database.postgres.bundled.{pod,}securityContext).
+# kagent images are built to run as a non-root numeric UID, and the UI mounts
+# emptyDir volumes for /tmp and the Next.js cache so readOnlyRootFilesystem works.
+podSecurityContext:
+  runAsNonRoot: true
+
+securityContext:
+  readOnlyRootFilesystem: true
+
+# ==============================================================================
+# DATABASE CONFIGURATION
+# ==============================================================================
+
+# Bundled Postgres is fine for the lab.
+#
+# storageClassName: minikube's default `standard` StorageClass uses the in-tree
+# `k8s.io/minikube-hostpath` provisioner, which silently ignores `fsGroup`. The
+# chart's pod runs as UID 999 with `readOnlyRootFilesystem: true`, so without
+# fsGroup-aware chown the volume mount stays root:root mode 0755 inside the
+# container and `mkdir /var/lib/postgresql/data/pgdata` fails with EACCES (the
+# pod CrashLoopBackOffs). Pointing at the CSI hostpath driver fixes it because
+# the CSI driver properly honors fsGroup (the kubelet chowns the mount to gid
+# 999 with g+rwxs before the container starts). Enable on minikube with:
+#   minikube addons enable csi-hostpath-driver
+database:
+  postgres:
+    bundled:
+      enabled: true
+      image:
+        registry: docker.io
+        repository: library
+        name: postgres
+        tag: "18.3-alpine"
+        pullPolicy: IfNotPresent
+      storage: 500Mi
+      storageClassName: csi-hostpath-sc
+      resources:
+        requests:
+          cpu: 250m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+      podSecurityContext:
+        fsGroup: 999
+        runAsUser: 999
+        runAsGroup: 999
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+        seccompProfile:
+          type: RuntimeDefault
+
+# ==============================================================================
+# CONTROLLER CONFIGURATION
+# ==============================================================================
+
+controller:
+  replicas: 1
+  loglevel: "info"
+  # Lab-only: anonymous admin@kagent.dev. Switch to `trusted-proxy` when the UI
+  # is fronted by oauth2-proxy (see chart's oauth2-proxy block in upstream values).
+  auth:
+    mode: unsecure
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 2
+      memory: 512Mi
+
+# ==============================================================================
+# UI CONFIGURATION
+# ==============================================================================
+
+ui:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  # Required because the global securityContext sets readOnlyRootFilesystem: true.
+  # Sized for typical Next.js + nginx workloads — only bump if you hit ENOSPC.
+  volumes:
+    nextjsCache: 100Mi
+    tmp: 50Mi
+
+# ==============================================================================
+# LLM PROVIDERS CONFIGURATION
+# ==============================================================================
+# Reference: https://kagent.dev/docs/getting-started/configuring-providers
+# Only providers[providers.default] is materialized as the default ModelConfig.
+# The OPENAI_API_KEY must already exist in the `kagent-openai` Secret in the
+# kagent namespace (provisioned out-of-band, e.g. via External Secrets).
+
+providers:
+  default: openAI
+  openAI:
+    provider: OpenAI
+    model: "gpt-4.1-mini"
+    apiKeySecretRef: kagent-openai
+    apiKeySecretKey: OPENAI_API_KEY
+    defaultHeaders:
+      x-provider: openai
+    # Route every kagent LLM call through agentgateway. The chart's
+    # modelconfig template emits this block under spec.openAI in the
+    # default ModelConfig CR, so every built-in agent inherits it.
+    # agentgateway's openai AgentgatewayBackend overrides the Authorization
+    # header with its own key from `aire-openai-token`, so the kagent-side
+    # OPENAI_API_KEY is effectively a placeholder on this path.
+    config:
+      baseUrl: http://agentgateway-external.agentgateway-system.svc.cluster.local/v1
+
+# ==============================================================================
+# KMCP (kagent MCP control-plane subchart)
+# ==============================================================================
+
+kmcp:
+  enabled: true
+
+# ==============================================================================
+# BUILT-IN TOOLS
+# ==============================================================================
+# kagent-tools is a subchart pulled from oci://ghcr.io/kagent-dev/tools/helm:0.1.3
+# and uses its own image (ghcr.io/kagent-dev/kagent/tools:0.1.3). The parent `tag`
+# above does NOT cascade to it — Helm globals are not wired up by the parent chart.
+
+kagent-tools:
+  enabled: true
+  nameOverride: tools
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  tools:
+    loglevel: "debug"
+    metrics:
+      port: 8085   # distinct from the main service port (8084)
+
+# ==============================================================================
+# AGENTS
+# ==============================================================================
+# Each block creates a kagent Agent CR. Runtime Deployments are created on demand
+# by the controller.
+#
+# NOTE for minikube: the cilium-* / istio-agent / kgateway-agent / argo-rollouts-agent
+# CRs install fine on a vanilla minikube cluster, but their tools only do useful work
+# once the corresponding control plane (Cilium, Istio, kgateway, Argo Rollouts) is
+# installed. Disable any of them by setting `enabled: false` if you don't plan to
+# install those systems.
+
+k8s-agent:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+kgateway-agent:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+istio-agent:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+promql-agent:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+observability-agent:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+argo-rollouts-agent:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+helm-agent:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+cilium-policy-agent:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+cilium-manager-agent:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+cilium-debug-agent:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+# ==============================================================================
+# MCP TOOLS
+# ==============================================================================
+# grafana-mcp pulls `mcp/grafana:latest` from Docker Hub with imagePullPolicy: Always.
+# Upstream notes that no other tag is published yet
+# (https://github.com/grafana/mcp-grafana/issues/180), so the defaults are kept.
+
+grafana-mcp:
+  enabled: true
+  grafana:
+    url: "grafana.kagent:3000/api"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+querydoc:
+  enabled: true
+  replicas: 1
+  image:
+    registry: ghcr.io
+    repository: kagent-dev/doc2vec/mcp
+    tag: "1.1.14"
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
