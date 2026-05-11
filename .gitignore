@@ -5,3 +5,6 @@
 # .tfstate files
 *.tfstate
 *.tfstate.*
+
+# Generated kubeconfig from kind_cluster (contains client cert + private key)
+**/bootstrap/*-config
