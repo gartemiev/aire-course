@@ -33,7 +33,7 @@ jobs:
         run: |
           TAG=${GITHUB_REF_NAME#v}
           digest=$(flux push artifact oci://ghcr.io/${{ github.repository }}/releases:${TAG} \
-            --path="./releases" \
+            --path="./lab-2/abox/releases" \
             --source="${{ github.repositoryUrl }}" \
             --revision="${{ github.ref_name }}@sha1:${{ github.sha }}" \
             --output json | jq -r '.digest')
