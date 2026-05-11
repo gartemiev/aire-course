@@ -39,6 +39,11 @@ metadata:
   namespace: agentgateway-system
 spec:
   gatewayClassName: agentgateway
+  infrastructure:
+    parametersRef:
+      group: agentgateway.dev
+      kind: AgentgatewayParameters
+      name: external-ui-bind
   listeners:
   - name: http
     port: 80
