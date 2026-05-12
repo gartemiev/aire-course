@@ -22,9 +22,22 @@ metadata:
 spec:
   interval: 1h
   releaseName: kagent
-  # 0.9.3 emits clean semver label values (no `+build` metadata), so the
-  # postRenderer that 0.7.23 needed to rewrite app.kubernetes.io/version is
-  # gone.
+  # Flux's source-controller writes the OCI artifact revision as
+  # `0.9.3@sha256:<digest>` and helm-controller passes that to template
+  # rendering as `.Chart.Version = "0.9.3+<short-sha>"`. The `+` is illegal
+  # in Kubernetes label values, so resources fail to install with
+  # `metadata.labels: Invalid value: "0.9.3+..."`. This is independent of
+  # the chart version — every 0.9.x kagent OCI release hits it. Patch the
+  # rendered label back to a clean semver before apply.
+  postRenderers:
+  - kustomize:
+      patches:
+      - target:
+          labelSelector: app.kubernetes.io/instance=kagent
+        patch: |
+          - op: add
+            path: /metadata/labels/app.kubernetes.io~1version
+            value: "0.9.3"
   dependsOn:
     - name: kagent-crds
       namespace: kagent
