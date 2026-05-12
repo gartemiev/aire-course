@@ -138,3 +138,8 @@ kubectl --kubeconfig lab-2/abox/bootstrap/abox-config \
 ```
 
 Open **http://localhost:15000/ui/** (trailing slash matters - the Next.js bundle assumes it).
+
+
+# Research part
+
+This was successfully accomplished: https://verify.skilljar.com/c/2wp2qpp4966d
