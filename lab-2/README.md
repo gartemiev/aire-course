@@ -48,10 +48,7 @@ The `abox/` directory here is a vendored, lightly customised copy of [den-vasyli
    git add lab-2/abox/bootstrap/variables.tf
    git commit -m "lab-2/abox: point at my GHCR"
    git push
-
-   # tag — the workflow publishes the first OCI artifact
-   git tag v0.1.0
-   git push origin v0.1.0
+   make push
    ```
 
 4. **Make the GHCR package public** (one-time). The first publish creates a private package; the cluster pulls anonymously. Go to `https://github.com/users/<your-gh-user>?tab=packages` → click `aire-course/releases` → Package settings → "Change visibility" → **Public**.
@@ -67,18 +64,19 @@ The `abox/` directory here is a vendored, lightly customised copy of [den-vasyli
 
 ### Iterating on the lab
 
-Edit anything under [abox/releases/](abox/releases/) → commit → bump tag → push:
+Edit anything under [abox/releases/](abox/releases/) → commit → git push →  make push:
 
 ```bash
-git tag v0.1.1   # bump patch
-git push origin v0.1.1
+git add . 
+git commit 
+git push
+make push
 ```
 
 The workflow republishes `releases:0.1.1`; Flux's `ResourceSetInputProvider` polls every 5 min, detects the new tag, and reconciles. To force immediate reconciliation:
 
 ```bash
-kubectl annotate ocirepository releases -n flux-system \
-  reconcile.fluxcd.io/requestedAt="$(date +%s)" --overwrite
+kubectl annotate ocirepository releases -n flux-system reconcile.fluxcd.io/requestedAt="$(date +%s)" --overwrite
 ```
 
 ---
@@ -94,51 +92,42 @@ kubectl --kubeconfig lab-2/abox/bootstrap/abox-config \
   port-forward -n flux-system svc/flux-operator 9080:9080
 ```
 
-Open **http://localhost:9080** in your browser. The UI shows:
-
-- **Cluster Info** — Kubernetes version, node count, Flux Operator + Distribution versions
-- **Flux Components** — `helm-controller`, `kustomize-controller`, `notification-controller`, `source-controller` health & versions
-- **Flux Reconcilers** — live counts of `FluxInstance`, `ResourceSet`, `Kustomization`, `HelmRelease` with running totals
-- **Sources** — including `OCIRepository` (this lab's primary source type), plus `GitRepository`, `HelmRepository`, etc.
+Open **http://localhost:9080** in your browser.
 
 ### Kagent UI - via the gateway
 
-The lab's HTTPRoute ([abox/releases/kagent.yaml](abox/releases/kagent.yaml)) routes `/` on `agentgateway-external` to the `kagent-ui` Service. The architecturally correct way to access the Kagent UI is through the gateway's external IP - this exercises the agentgateway's declarative routing.
+To access Kagent UI, please make port forwarding:
 
-```bash
-kubectl --kubeconfig lab-2/abox/bootstrap/abox-config \
-  get svc -n agentgateway-system agentgateway-external
+```
+kubectl port-forward -n kagent svc/kagent-ui  8080:8080
 ```
 
-Open `http://<EXTERNAL-IP>/` (e.g. `http://172.19.0.5/`) in your browser.
-
-If `EXTERNAL-IP` is `<pending>`, `cloud-provider-kind` isn't running. `make run` starts it; if it's been stopped, restart it manually:
-
-```bash
-nohup /tmp/cloud-provider-kind > /tmp/cloud-provider-kind.log 2>&1 &
-disown
-```
-
-On macOS with Docker Desktop the Docker bridge subnet (`172.18.0.0/16` or `172.19.0.0/16`) isn't reachable from the host by default. If `http://<EXTERNAL-IP>/` won't load, fall back to port-forwarding the gateway Service:
-
-```bash
-kubectl port-forward -n agentgateway-system svc/agentgateway-external 8080:80
-# then open http://localhost:8080
-```
-
-This still flows through the gateway data plane - only the last hop from your laptop changes.
+Open **http://localhost:8080** in your browser.
 
 ### agentgateway UI - via Service
 
 By default the agentgateway admin UI binds to `127.0.0.1:15000` inside the data-plane pod, so it can only be reached via `kubectl port-forward deployment/...`. This lab patches the data-plane config to bind on `0.0.0.0:15000` (via [abox/releases/agentgateway-ui.yaml](abox/releases/agentgateway-ui.yaml) - an `AgentgatewayParameters` resource attached to the Gateway through `infrastructure.parametersRef`) and exposes it as a ClusterIP Service `agentgateway-ui`.
 
 ```bash
-kubectl --kubeconfig lab-2/abox/bootstrap/abox-config \
-  port-forward -n agentgateway-system svc/agentgateway-ui 15000:15000
+kubectl --kubeconfig lab-2/abox/bootstrap/abox-config port-forward -n agentgateway-system svc/agentgateway-ui 15000:15000
 ```
 
-Open **http://localhost:15000/ui/** (trailing slash matters - the Next.js bundle assumes it).
+Open **http://localhost:15000/ui/**
 
+
+## Step 3 — MCPServer, Agent, ModelConfig (solutions)
+
+Here, I deployed External Secrets Operator to manage OpenAI token which is being stored in GCP beyond requested tasks.
+I've also decided to upgrade Kagent to 0.9.3 version. Kagent communicates with LLM via agentgateway. 
+We do not store openAI token under ModeConfig. 
+AI gateway route was configured for communication in between kagent and agentgateway in terms of LLM. 
+
+After initial deployment of External Secrets Operator We need to configure GCP service account key in secrets by running:
+```
+$ gcloud iam service-accounts keys create /tmp/key.json   --iam-account=external-secrets@heorhii-artemiev-test-project.iam.gserviceaccount.com
+$ kubectl -n external-secrets create secret generic gcp-sa-key --from-file=key.json=/tmp/key.json
+$ rm /tmp/key.json
+```
 
 # Research part
 
