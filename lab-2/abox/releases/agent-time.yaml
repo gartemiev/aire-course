@@ -24,8 +24,8 @@ spec:
     - type: McpServer
       mcpServer:
         apiGroup: kagent.dev
-        kind: MCPServer
-        name: time-mcp
+        kind: RemoteMCPServer
+        name: time-mcp-via-gateway
         toolNames:
         - get_current_time
         - convert_time

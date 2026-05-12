@@ -129,6 +129,8 @@ $ kubectl -n external-secrets create secret generic gcp-sa-key --from-file=key.j
 $ rm /tmp/key.json
 ```
 
+Routing to MCP server goes via agentgateway MCP to /mcp URI.
+
 # Research part
 
 This was successfully accomplished: https://verify.skilljar.com/c/2wp2qpp4966d
