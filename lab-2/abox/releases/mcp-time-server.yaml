@@ -3,6 +3,8 @@ kind: MCPServer
 metadata:
   name: time-mcp
   namespace: kagent
+  labels:
+    kagent.dev/discovery: disabled   # gateway-routed only; do not auto-create RemoteMCPServer
 spec:
   transportType: stdio
   stdioTransport: {}
