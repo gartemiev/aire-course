@@ -1,0 +1,31 @@
+# Declarative kagent Agent wiring the default OpenAI ModelConfig (which now
+# routes through agentgateway) to the time MCP tool server. Tools are
+# referenced by name so the agent runtime only exposes the listed tools to the
+# model, even if the RemoteMCPServer discovers more.
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: time-agent
+  namespace: kagent
+spec:
+  type: Declarative
+  description: "Agent that answers time and timezone questions using the time MCP server."
+  declarative:
+    modelConfig: default-model-config
+    stream: true
+    systemMessage: |
+      You are a helpful assistant. Use the available time tools to answer
+      time and timezone questions.
+
+      Always call get_current_time when asked about the current time, and
+      convert_time when asked to translate a time between timezones. If a
+      timezone is not specified, default to UTC.
+    tools:
+    - type: McpServer
+      mcpServer:
+        apiGroup: kagent.dev
+        kind: RemoteMCPServer
+        name: time-mcp
+        toolNames:
+        - get_current_time
+        - convert_time
