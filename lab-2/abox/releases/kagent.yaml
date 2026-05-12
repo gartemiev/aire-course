@@ -12,7 +12,7 @@ spec:
   interval: 1h
   url: oci://ghcr.io/kagent-dev/kagent/helm/kagent
   ref:
-    tag: "0.7.23"
+    tag: "0.9.2"
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -22,17 +22,16 @@ metadata:
 spec:
   interval: 1h
   releaseName: kagent
-  postRenderers:
-  - kustomize:
-      patches:
-      - patch: |
-          - op: add
-            path: /metadata/labels/app.kubernetes.io~1version
-            value: "0.7.23"
-        target:
-          labelSelector: app.kubernetes.io/name=kagent
+  # 0.9.2 emits clean semver label values (no `+build` metadata), so the
+  # postRenderer that 0.7.23 needed to rewrite app.kubernetes.io/version is
+  # gone.
   dependsOn:
     - name: kagent-crds
+      namespace: kagent
+    # 0.9.2 ships the kmcp controller as a subchart but its MCPServer CRD
+    # comes from a separate Helm chart we install in releases/crds/. Without
+    # this dependsOn the kmcp controller can come up before its CRD exists.
+    - name: kmcp-crds
       namespace: kagent
   chartRef:
     kind: OCIRepository
@@ -40,14 +39,18 @@ spec:
     namespace: flux-system
   install:
     createNamespace: true
+  # Bundled Postgres replaces SQLite in 0.9.2 and needs longer to come up
+  # behind the controller/UI on a cold KinD; lab-1 hit this on a smaller
+  # cluster with 900s, 600s is enough here.
+  timeout: 10m
   values:
     controller:
       image:
-        tag: 0.7.23
-    tag: 0.7.23
+        tag: 0.9.2
+    tag: 0.9.2
     ui:
       image:
-        tag: 0.7.23
+        tag: 0.9.2
     tools:
       querydoc:
         enabled: false
