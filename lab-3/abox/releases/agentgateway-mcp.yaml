@@ -1,0 +1,41 @@
+# releases/agentgateway-mcp.yaml
+# Federate MCP servers under /mcp on the shared agentgateway. Adding a new
+# MCPServer = append another target. Agents reach this via a RemoteMCPServer
+# pointing at the gateway URL instead of the per-server Service.
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayBackend
+metadata:
+  name: mcp
+  namespace: agentgateway-system
+spec:
+  mcp:
+    sessionRouting: Stateful   # MCP sessions are sticky to a target
+    targets:
+    # Using `static` rather than `selector` because the kmcp-materialized
+    # Service has no metadata.labels — agentgateway's services.matchLabels
+    # matches the Service object's labels, not its pod selector, so a
+    # label-based target finds zero Services and tools/list returns empty.
+    - name: time
+      static:
+        host: time-mcp.kagent.svc.cluster.local
+        port: 3000
+        protocol: StreamableHTTP
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: mcp-router
+  namespace: agentgateway-system
+spec:
+  parentRefs:
+  - name: agentgateway-external
+    sectionName: http
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /mcp
+    backendRefs:
+    - group: agentgateway.dev
+      kind: AgentgatewayBackend
+      name: mcp

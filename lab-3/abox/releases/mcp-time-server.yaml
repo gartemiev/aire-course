@@ -1,0 +1,25 @@
+apiVersion: kagent.dev/v1alpha1
+kind: MCPServer
+metadata:
+  name: time-mcp
+  namespace: kagent
+  labels:
+    kagent.dev/discovery: disabled   # gateway-routed only; do not auto-create RemoteMCPServer
+spec:
+  transportType: stdio
+  stdioTransport: {}
+  deployment:
+    image: mcp/time
+    cmd: "mcp-server-time"
+    port: 3000
+---
+apiVersion: kagent.dev/v1alpha2
+kind: RemoteMCPServer
+metadata:
+  name: time-mcp-via-gateway
+  namespace: kagent
+spec:
+  description: "Time tools, routed via agentgateway"
+  protocol: STREAMABLE_HTTP
+  url: http://agentgateway-external.agentgateway-system.svc.cluster.local/mcp
+  timeout: 30s

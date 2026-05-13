@@ -1,0 +1,26 @@
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayParameters
+metadata:
+  name: external-ui-bind
+  namespace: agentgateway-system
+spec:
+  rawConfig:
+    config:
+      adminAddr: 0.0.0.0:15000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agentgateway-ui
+  namespace: agentgateway-system
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/instance: agentgateway-external
+    app.kubernetes.io/name: agentgateway-external
+    gateway.networking.k8s.io/gateway-name: agentgateway-external
+  ports:
+    - name: ui
+      port: 15000
+      targetPort: 15000
+      protocol: TCP
