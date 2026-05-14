@@ -110,3 +110,55 @@ kubectl --kubeconfig lab-3/abox/bootstrap/abox-lab3-config \
 # Solutions
 
 1. Solution for the research task is described in lab-3/research folder.
+
+2. **Custom Time MCP server, deployed via GitOps.**
+
+   ### What the server does
+
+   A FastMCP 3 server scaffolded with [kmcp](https://github.com/kagent-dev/kmcp), living at [abox/time-mcp-server/](abox/time-mcp-server/). It exposes time-related tools to any MCP-compatible agent:
+
+   - `get_current_time` — returns the current time in a given IANA timezone (defaults to UTC).
+   - `convert_time` — converts a wall-clock time between two IANA timezones.
+   - `echo` — diagnostic echo tool.
+
+   Tools live under [abox/time-mcp-server/src/tools/](abox/time-mcp-server/src/tools/) and auto-register via FastMCP's `@mcp.tool()` decorator; the dynamic loader in [src/core/server.py](abox/time-mcp-server/src/core/server.py) picks them up at startup, so adding a tool is "drop a `.py` file, no wiring needed". Transport is **Streamable HTTP on `:3000/mcp`** — the same image can also run stdio (`start` script) for local MCP-inspector testing.
+
+   ### Why not the kmcp quickstart flow
+
+   The [kmcp quickstart](https://kagent.dev/docs/kmcp/quickstart#deploy-the-mcp-server) uses `kmcp deploy` which `kubectl apply`s an `MCPServer` CR straight at the cluster. That bypasses Flux. In abox, every cluster change must arrive through the `releases-lab3` OCI artifact, so we kept the same `MCPServer` CR (it's a kmcp-native, declarative resource) but ship it through GitOps and built the container image with our own CI.
+
+   The kagent `time-agent` ([abox/releases/agent-time.yaml](abox/releases/agent-time.yaml)) reaches the server via the explicit `RemoteMCPServer time-mcp-via-gateway`, which points at the gateway URL — not the Service directly. Discovery is disabled on the `MCPServer` so kmcp does not auto-create a competing `RemoteMCPServer`.
+
+   ### Files
+
+   | Path | Purpose |
+   | --- | --- |
+   | [abox/time-mcp-server/](abox/time-mcp-server/) | Server source, `pyproject.toml`, `Dockerfile`, `kmcp.yaml`. |
+   | [.github/workflows/time-mcp-image-lab3.yaml](../.github/workflows/time-mcp-image-lab3.yaml) | Multi-arch image build. Branch pushes build-only (sanity check); `lab-3-time-mcp-*` tags publish to GHCR. |
+   | [abox/releases/time-mcp-server.yaml](abox/releases/time-mcp-server.yaml) | `MCPServer` CR (the declarative `kmcp deploy`) + `RemoteMCPServer` pointing at the gateway. |
+   | [abox/releases/agentgateway-mcp.yaml](abox/releases/agentgateway-mcp.yaml) | `AgentgatewayBackend` + HTTPRoute that federates `/mcp` to the server. Untouched — its static target matches the Service the kmcp controller generates. |
+   | [abox/releases/agent-time.yaml](abox/releases/agent-time.yaml) | kagent `Agent` declaring which tools to expose to the model. |
+
+   ### Release cycle for the server
+
+   The image and the cluster bundle version **independently**.
+
+   - **Change the server code/Dockerfile** → push to `main` runs the build (no publish) → when ready, cut an image tag:
+     ```bash
+     git tag lab-3-time-mcp-0.1.1
+     git push origin lab-3-time-mcp-0.1.1
+     ```
+     The workflow publishes `ghcr.io/<owner>/aire-course/lab-3/time-mcp-server:0.1.1`. First time: make the GHCR package public so KinD can pull it anonymously.
+
+   - **Change the deployment** (image pin, env, replicas, gateway target, …) → edit [abox/releases/time-mcp-server.yaml](abox/releases/time-mcp-server.yaml) → commit, push, then from `abox/`:
+     ```bash
+     make push
+     ```
+     RSIP polls every 5 min; force immediate reconcile with `flux reconcile source oci releases -n flux-system`.
+
+   ### Gotchas worth knowing
+
+   - **Multi-arch is required.** KinD on Apple Silicon runs linux/arm64; GitHub runners are linux/amd64. A single-arch image will fail `ImagePullBackOff` with `no match for platform in manifest`. The workflow uses `docker/setup-qemu-action` + `platforms: linux/amd64,linux/arm64`.
+   - **Don't wrap the entrypoint in `uv run`** inside the container. The image's venv is already baked at build time and `/app/.venv/bin` is on `PATH`, so `cmd: dev-http` runs the project's console script directly. `uv run` tries to populate `$HOME/.cache/uv`, which fails for the non-root `mcpuser`.
+   - **`.python-version` must be committed.** The stock Python `.gitignore` excludes it; the Dockerfile copies it during `uv sync`. Without it, the CI build fails with `failed to compute cache key … "/.python-version": not found`.
+   - **`discovery: disabled` on the MCPServer is intentional.** It stops the kmcp controller from auto-creating a `RemoteMCPServer` that would point at the Service. We want agents to traverse agentgateway so the gateway's MCP-aware features (session routing, observability) apply.
