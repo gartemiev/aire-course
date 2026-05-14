@@ -28,7 +28,7 @@ spec:
     targetPort: 3000
     path: /mcp
   deployment:
-    image: ghcr.io/gartemiev/aire-course/lab-3/time-mcp-server:0.1.0
+    image: ghcr.io/gartemiev/aire-course/lab-3/time-mcp-server:0.1.1
     imagePullPolicy: IfNotPresent
     # Call the project's `dev-http` console script directly. It's installed
     # into /app/.venv/bin/ by `uv sync` at build time, and /app/.venv/bin is
