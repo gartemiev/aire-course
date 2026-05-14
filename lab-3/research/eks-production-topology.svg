@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1220" height="780" viewBox="0 0 1220 780" role="img" aria-labelledby="title desc">
+  <title id="title">Production topology on EKS</title>
+  <desc id="desc">Production deployment topology showing agentgateway replicas, kagent triage agents, Metabase MCP server replicas, observability, Metabase, BigQuery, PostgreSQL, and an external LLM provider.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"/>
+    </marker>
+    <style>
+      text {
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        fill: #0f172a;
+      }
+      .cluster {
+        fill: #f8fafc;
+        stroke: #64748b;
+        stroke-width: 2;
+      }
+      .group {
+        fill: #ffffff;
+        stroke: #cbd5e1;
+        stroke-width: 2;
+      }
+      .gateway {
+        fill: #ecfdf5;
+        stroke: #059669;
+        stroke-width: 2;
+      }
+      .agent {
+        fill: #eff6ff;
+        stroke: #2563eb;
+        stroke-width: 2;
+      }
+      .mcp {
+        fill: #f5f3ff;
+        stroke: #7c3aed;
+        stroke-width: 2;
+      }
+      .obs {
+        fill: #fef3c7;
+        stroke: #d97706;
+        stroke-width: 2;
+      }
+      .external {
+        fill: #f1f5f9;
+        stroke: #475569;
+        stroke-width: 2;
+      }
+      .line {
+        stroke: #334155;
+        stroke-width: 2.2;
+        marker-end: url(#arrow);
+        fill: none;
+      }
+      .telemetry {
+        stroke: #94a3b8;
+        stroke-width: 2;
+        stroke-dasharray: 7 6;
+        marker-end: url(#arrow);
+        fill: none;
+      }
+      .label {
+        font-size: 15px;
+        font-weight: 650;
+      }
+      .group-label {
+        font-size: 16px;
+        font-weight: 750;
+      }
+      .small {
+        font-size: 12px;
+        fill: #475569;
+      }
+    </style>
+  </defs>
+
+  <rect width="1220" height="780" fill="#ffffff"/>
+  <text x="610" y="42" text-anchor="middle" font-size="28" font-weight="760">Production Deployment on EKS</text>
+  <text x="610" y="70" text-anchor="middle" font-size="15" fill="#475569">Requests flow from kagent through MCP or LLM gateway paths; observability receives telemetry only</text>
+
+  <rect class="cluster" x="40" y="105" width="890" height="620" rx="18"/>
+  <text class="group-label" x="485" y="135" text-anchor="middle">EKS Cluster</text>
+
+  <rect class="group" x="70" y="165" width="230" height="170" rx="14"/>
+  <text class="group-label" x="185" y="194" text-anchor="middle">Agent Layer</text>
+  <rect class="agent" x="95" y="245" width="180" height="52" rx="10"/>
+  <text class="label" x="185" y="267" text-anchor="middle">kagent triage</text>
+  <text class="label" x="185" y="288" text-anchor="middle">agent</text>
+
+  <rect class="group" x="350" y="165" width="230" height="210" rx="14"/>
+  <text class="group-label" x="465" y="194" text-anchor="middle">Gateway Layer</text>
+  <rect class="gateway" x="375" y="225" width="180" height="52" rx="10"/>
+  <text class="label" x="465" y="247" text-anchor="middle">MCP Gateway</text>
+  <text class="small" x="465" y="267" text-anchor="middle">agentgateway</text>
+  <rect class="gateway" x="375" y="305" width="180" height="52" rx="10"/>
+  <text class="label" x="465" y="327" text-anchor="middle">LLM Gateway</text>
+  <text class="small" x="465" y="347" text-anchor="middle">agentgateway</text>
+
+  <rect class="group" x="630" y="165" width="250" height="170" rx="14"/>
+  <text class="group-label" x="755" y="194" text-anchor="middle">MCP Layer</text>
+  <rect class="mcp" x="655" y="245" width="200" height="52" rx="10"/>
+  <text class="label" x="755" y="267" text-anchor="middle">Metabase MCP</text>
+  <text class="label" x="755" y="288" text-anchor="middle">Server</text>
+
+  <rect class="group" x="70" y="430" width="810" height="230" rx="14"/>
+  <text class="group-label" x="475" y="459" text-anchor="middle">Observability</text>
+  <text class="small" x="475" y="480" text-anchor="middle">Side-channel for traces, metrics, dashboards, and logs. Not part of the request path.</text>
+  <rect class="obs" x="110" y="505" width="150" height="48" rx="10"/>
+  <text class="label" x="185" y="535" text-anchor="middle">OpenTelemetry</text>
+  <rect class="obs" x="310" y="505" width="140" height="48" rx="10"/>
+  <text class="label" x="380" y="535" text-anchor="middle">Prometheus</text>
+  <rect class="obs" x="500" y="505" width="130" height="48" rx="10"/>
+  <text class="label" x="565" y="535" text-anchor="middle">Grafana</text>
+  <rect class="obs" x="680" y="505" width="130" height="48" rx="10"/>
+  <text class="label" x="745" y="535" text-anchor="middle">Logs</text>
+
+  <rect class="external" x="1000" y="190" width="170" height="64" rx="12"/>
+  <text class="label" x="1085" y="228" text-anchor="middle">Metabase on EKS</text>
+
+  <rect class="external" x="1000" y="320" width="170" height="58" rx="12"/>
+  <text class="label" x="1085" y="355" text-anchor="middle">BigQuery</text>
+
+  <rect class="external" x="1000" y="420" width="170" height="58" rx="12"/>
+  <text class="label" x="1085" y="455" text-anchor="middle">PostgreSQL</text>
+
+  <rect class="external" x="1000" y="565" width="170" height="64" rx="12"/>
+  <text class="label" x="1085" y="591" text-anchor="middle">External LLM</text>
+  <text class="label" x="1085" y="612" text-anchor="middle">Provider</text>
+
+  <path class="line" d="M275 264 C310 250, 340 247, 375 251"/>
+  <path class="line" d="M275 278 C315 315, 340 328, 375 331"/>
+  <path class="line" d="M555 251 C590 252, 620 260, 655 271"/>
+  <path class="line" d="M855 271 C915 260, 955 235, 1000 222"/>
+  <path class="line" d="M1085 254 L1085 320"/>
+  <path class="line" d="M1085 254 C1135 290, 1135 390, 1085 420"/>
+  <path class="line" d="M555 331 C690 405, 850 515, 1000 590"/>
+
+  <path class="telemetry" d="M185 297 C185 380, 185 450, 185 505"/>
+  <path class="telemetry" d="M755 297 C700 405, 460 475, 410 505"/>
+  <path class="telemetry" d="M465 357 C400 430, 290 475, 215 505"/>
+  <text class="small" x="185" y="417" text-anchor="middle">telemetry</text>
+  <text class="small" x="625" y="418" text-anchor="middle">telemetry</text>
+  <text class="small" x="330" y="440" text-anchor="middle">telemetry</text>
+
+  <text class="small" x="485" y="700" text-anchor="middle">Recommended controls: HPA, PDB, topology spread, readiness probes, NetworkPolicies, IRSA, External Secrets, and OpenTelemetry tracing.</text>
+</svg>

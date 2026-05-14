@@ -106,3 +106,7 @@ kubectl --kubeconfig lab-3/abox/bootstrap/abox-lab3-config \
 ```
 
 ---
+
+# Solutions
+
+1. Solution for the research task is described in lab-3/research folder.
