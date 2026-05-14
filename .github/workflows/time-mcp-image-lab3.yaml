@@ -24,6 +24,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: docker/setup-qemu-action@v3
+
       - uses: docker/setup-buildx-action@v3
 
       - name: Login to GHCR (only when publishing)
@@ -46,6 +48,10 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: ./lab-3/abox/time-mcp-server
+          # Multi-arch: KinD on Apple Silicon needs linux/arm64; CI runners
+          # are linux/amd64. Single-arch builds fail pull with "no match for
+          # platform in manifest" on the mismatched node.
+          platforms: linux/amd64,linux/arm64
           # Push only on a release tag. Branch pushes and workflow_dispatch
           # build the image locally to verify the Dockerfile, then discard it.
           push: ${{ startsWith(github.ref, 'refs/tags/lab-3-time-mcp-') }}

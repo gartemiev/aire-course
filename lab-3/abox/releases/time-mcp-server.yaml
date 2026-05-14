@@ -30,12 +30,12 @@ spec:
   deployment:
     image: ghcr.io/gartemiev/aire-course/lab-3/time-mcp-server:0.1.0
     imagePullPolicy: IfNotPresent
-    # The project's `dev-http` console script (pyproject.toml [project.scripts])
-    # forces --transport http and reads HOST/PORT from env.
-    cmd: uv
-    args:
-      - run
-      - dev-http
+    # Call the project's `dev-http` console script directly. It's installed
+    # into /app/.venv/bin/ by `uv sync` at build time, and /app/.venv/bin is
+    # on PATH per the Dockerfile. Wrapping it in `uv run` at runtime breaks
+    # under the non-root mcpuser because uv tries to populate ~/.cache/uv.
+    # The script forces --transport http and reads HOST/PORT from env.
+    cmd: dev-http
     env:
       HOST: "0.0.0.0"
       PORT: "3000"
