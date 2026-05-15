@@ -1,0 +1,25 @@
+{
+  "criteria": {
+    "rubric_based_final_response_quality_v1": {
+      "threshold": 0.8,
+      "judgeModelOptions": {
+        "judgeModel": "gemini-flash-latest",
+        "numSamples": 1
+      },
+      "rubrics": [
+        {
+          "rubricId": "uses_tool",
+          "rubricContent": { "textProperty": "The response is grounded in a call to get_current_time or convert_time and does not invent times from thin air." }
+        },
+        {
+          "rubricId": "no_clarifying_questions",
+          "rubricContent": { "textProperty": "The response never asks the user for a timezone or any other clarification — it picks a sensible default (UTC) when information is missing." }
+        },
+        {
+          "rubricId": "answers_the_question",
+          "rubricContent": { "textProperty": "The response directly answers the time/timezone question with a concrete datetime, timezone, or day of the week." }
+        }
+      ]
+    }
+  }
+}

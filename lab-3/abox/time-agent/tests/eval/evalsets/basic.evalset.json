@@ -1,0 +1,82 @@
+{
+  "eval_set_id": "basic_eval",
+  "name": "Time agent — basic evaluation",
+  "description": "Exercises the no-clarifying-questions, default-to-UTC rules from the system prompt.",
+  "eval_cases": [
+    {
+      "eval_id": "current_time_no_timezone",
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [{"text": "What time is it right now?"}]
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "app",
+        "user_id": "eval_user",
+        "state": {}
+      }
+    },
+    {
+      "eval_id": "current_time_in_tokyo",
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [{"text": "What's the current time in Asia/Tokyo?"}]
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "app",
+        "user_id": "eval_user",
+        "state": {}
+      }
+    },
+    {
+      "eval_id": "convert_time_utc_to_ny",
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [{"text": "Convert 2026-05-15T10:00:00 from UTC to America/New_York."}]
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "app",
+        "user_id": "eval_user",
+        "state": {}
+      }
+    },
+    {
+      "eval_id": "convert_time_missing_source",
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [{"text": "What is 18:30 on 2026-05-15 in Europe/London?"}]
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "app",
+        "user_id": "eval_user",
+        "state": {}
+      }
+    },
+    {
+      "eval_id": "day_of_week_in_sydney",
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [{"text": "What day of the week is it in Australia/Sydney?"}]
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "app",
+        "user_id": "eval_user",
+        "state": {}
+      }
+    }
+  ]
+}

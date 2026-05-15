@@ -9,4 +9,4 @@ resources:
   - openai-credentials.yaml
   - kagent.yaml
   - time-mcp-server.yaml
-  - agent-time.yaml
+  - time-agent.yaml
