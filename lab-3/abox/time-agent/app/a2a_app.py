@@ -17,15 +17,26 @@
 Serve with:
     uvicorn app.a2a_app:a2a_app --host 0.0.0.0 --port 8080
 
-Agent card is exposed at /.well-known/agent-card.json. We build it
-explicitly (rather than letting to_a2a() auto-generate) so we can declare
-capabilities.streaming=True — the kagent UI uses A2A's message/stream
-endpoint, which the auto-generated card disables by default.
+We use ADK's AgentCardBuilder directly (instead of letting to_a2a()
+auto-build) for one reason: to_a2a()'s builder defaults
+capabilities.streaming to None, which the A2A SDK treats as False, which
+breaks the kagent UI's message/stream calls. The builder itself accepts
+a capabilities= kwarg — to_a2a() just doesn't forward it. So we call the
+builder ourselves with streaming=True and pass the finished card to
+to_a2a(). Skills are still auto-discovered from the MCPToolset, so adding
+a new tool in agent.py shows up here automatically.
+
+Side effect: the MCP server must be reachable at pod startup, because
+the builder enumerates MCP tools to populate skills. If MCP is down,
+the pod fails to start (CrashLoopBackOff) instead of starting and then
+failing every tool call — which is what we want.
 """
 
+import asyncio
 import os
 
-from a2a.types import AgentCapabilities, AgentCard, AgentSkill
+from a2a.types import AgentCapabilities
+from google.adk.a2a.utils.agent_card_builder import AgentCardBuilder
 from google.adk.a2a.utils.agent_to_a2a import to_a2a
 
 from app.agent import root_agent
@@ -33,30 +44,15 @@ from app.agent import root_agent
 PORT = int(os.getenv("PORT", "8080"))
 A2A_PUBLIC_URL = os.getenv("A2A_PUBLIC_URL", f"http://0.0.0.0:{PORT}/")
 
-agent_card = AgentCard(
-    name="root_agent",
-    description="Agent that answers time and timezone questions using the time MCP server.",
-    url=A2A_PUBLIC_URL,
-    version=os.getenv("AGENT_VERSION", "0.1.0"),
-    protocol_version="0.2.6",
-    capabilities=AgentCapabilities(streaming=True),
-    default_input_modes=["text/plain"],
-    default_output_modes=["text/plain"],
-    skills=[
-        AgentSkill(
-            id="get_current_time",
-            name="get_current_time",
-            description="Return the current time, date, and weekday for an IANA timezone (default UTC).",
-            tags=["time", "mcp"],
-        ),
-        AgentSkill(
-            id="convert_time",
-            name="convert_time",
-            description="Convert an ISO datetime between two IANA timezones.",
-            tags=["time", "mcp"],
-        ),
-    ],
-    supports_authenticated_extended_card=False,
-)
+
+async def _build_agent_card():
+    return await AgentCardBuilder(
+        agent=root_agent,
+        rpc_url=A2A_PUBLIC_URL,
+        capabilities=AgentCapabilities(streaming=True),
+    ).build()
+
+
+agent_card = asyncio.run(_build_agent_card())
 
 a2a_app = to_a2a(root_agent, port=PORT, agent_card=agent_card)

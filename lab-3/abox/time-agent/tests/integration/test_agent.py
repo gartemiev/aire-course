@@ -18,7 +18,6 @@ Skipped unless TIME_MCP_URL is reachable (port-forward the gateway first).
 """
 
 import os
-from urllib.parse import urlparse
 
 import pytest
 import requests
@@ -29,14 +28,29 @@ from google.genai import types
 
 
 def _mcp_reachable() -> bool:
+    """Send a JSON-RPC initialize to TIME_MCP_URL and accept only an MCP response."""
     url = os.getenv("TIME_MCP_URL", "http://localhost:8080/mcp")
-    parsed = urlparse(url)
-    root = f"{parsed.scheme}://{parsed.netloc}"
+    payload = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "2025-06-18",
+            "capabilities": {},
+            "clientInfo": {"name": "pytest-probe", "version": "0"},
+        },
+    }
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream",
+    }
     try:
-        requests.get(root, timeout=2)
-        return True
+        resp = requests.post(url, json=payload, headers=headers, timeout=2)
     except requests.RequestException:
         return False
+    if resp.status_code >= 400:
+        return False
+    return '"result"' in resp.text or '"error"' in resp.text
 
 
 pytestmark = pytest.mark.skipif(

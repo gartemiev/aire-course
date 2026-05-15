@@ -179,7 +179,9 @@ kubectl --kubeconfig lab-3/abox/bootstrap/abox-lab3-config \
 
    `to_a2a()` auto-generates an agent card from the ADK agent, but defaults `capabilities.streaming` to unset (treated as `false`). The kagent UI dials `message/stream` (SSE) — when the card says streaming isn't supported, the A2A SDK rejects the request with `Streaming is not supported by the agent` and the UI shows a red error box.
 
-   [`app/a2a_app.py`](abox/time-agent/app/a2a_app.py) builds the card explicitly with `AgentCapabilities(streaming=True)` and lists the two MCP tools as `AgentSkill` entries (the auto-builder would have populated those, but providing our own card bypasses it). An e2e test asserts `card.capabilities.streaming === true` so a regression fails CI instead of production.
+   The bug is one missing kwarg: `AgentCardBuilder.__init__` accepts `capabilities=...` but `to_a2a()` never forwards it. So [`app/a2a_app.py`](abox/time-agent/app/a2a_app.py) calls `AgentCardBuilder(agent=root_agent, rpc_url=..., capabilities=AgentCapabilities(streaming=True))` itself, awaits `.build()`, and passes the finished card to `to_a2a(..., agent_card=card)`. Skills stay auto-discovered from the MCPToolset, so adding a new tool in [agent.py](abox/time-agent/app/agent.py) shows up in the card without touching `a2a_app.py`. An e2e test asserts `card.capabilities.streaming === true` and that both tool skills are present, so a regression fails CI instead of production.
+
+   Side effect: the MCP server must be reachable at pod startup, because the builder enumerates MCP tools to populate skills. If MCP is down, the pod fails to start (`CrashLoopBackOff`) instead of starting and then failing every tool call — which is what we want. The unit tests use `monkeypatch.setenv` (not direct `os.environ` mutation) so env changes don't leak into sibling subprocess-spawning tests.
 
    ### Testing locally
 

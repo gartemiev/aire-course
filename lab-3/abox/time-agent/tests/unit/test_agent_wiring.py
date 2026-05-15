@@ -16,10 +16,14 @@
 
 No network: only asserts the agent is constructed with the right MCP toolset
 and that MODEL_PROVIDER selects the right model class.
+
+Every test goes through `_reload_agent_with_env`, which uses pytest's
+`monkeypatch` so env mutations are torn down at test end and don't leak into
+sibling tests (e.g. the e2e subprocess in tests/integration/test_server_e2e.py
+inheriting a fake TIME_MCP_URL).
 """
 
 import importlib
-import os
 
 import pytest
 
@@ -29,16 +33,18 @@ from google.adk.tools.mcp_tool.mcp_session_manager import (
 )
 
 
-def _reload_agent_with_env(**env: str):
+def _reload_agent_with_env(monkeypatch, **env: str):
+    """Set env vars (scoped to the test) and reload app.agent."""
     for key, value in env.items():
-        os.environ[key] = value
+        monkeypatch.setenv(key, value)
     import app.agent
 
     return importlib.reload(app.agent)
 
 
-def test_root_agent_has_mcp_toolset_with_filter() -> None:
+def test_root_agent_has_mcp_toolset_with_filter(monkeypatch) -> None:
     mod = _reload_agent_with_env(
+        monkeypatch,
         MODEL_PROVIDER="openai",
         TIME_MCP_URL="http://example.test/mcp",
     )
@@ -52,8 +58,9 @@ def test_root_agent_has_mcp_toolset_with_filter() -> None:
     assert sorted(toolset.tool_filter or []) == ["convert_time", "get_current_time"]
 
 
-def test_openai_provider_uses_litellm() -> None:
+def test_openai_provider_uses_litellm(monkeypatch) -> None:
     mod = _reload_agent_with_env(
+        monkeypatch,
         MODEL_PROVIDER="openai",
         OPENAI_API_BASE="http://example.test/v1",
     )
@@ -62,20 +69,17 @@ def test_openai_provider_uses_litellm() -> None:
     assert isinstance(mod.root_agent.canonical_model, LiteLlm)
 
 
-def test_unknown_provider_raises() -> None:
-    os.environ["MODEL_PROVIDER"] = "bogus"
+def test_unknown_provider_raises(monkeypatch) -> None:
+    monkeypatch.setenv("MODEL_PROVIDER", "bogus")
     with pytest.raises(ValueError, match="Unknown MODEL_PROVIDER"):
         import app.agent
 
         importlib.reload(app.agent)
-    os.environ["MODEL_PROVIDER"] = "openai"
-    import app.agent
-
-    importlib.reload(app.agent)
 
 
-def test_mcp_extra_headers_passed_through() -> None:
+def test_mcp_extra_headers_passed_through(monkeypatch) -> None:
     mod = _reload_agent_with_env(
+        monkeypatch,
         MODEL_PROVIDER="openai",
         MCP_EXTRA_HEADERS='{"X-Tenant": "acme", "X-Route-Tier": "premium"}',
     )
@@ -86,15 +90,16 @@ def test_mcp_extra_headers_passed_through() -> None:
     }
 
 
-def test_mcp_extra_headers_unset_means_none() -> None:
-    os.environ.pop("MCP_EXTRA_HEADERS", None)
-    mod = _reload_agent_with_env(MODEL_PROVIDER="openai")
+def test_mcp_extra_headers_unset_means_none(monkeypatch) -> None:
+    monkeypatch.delenv("MCP_EXTRA_HEADERS", raising=False)
+    mod = _reload_agent_with_env(monkeypatch, MODEL_PROVIDER="openai")
     toolset = next(t for t in mod.root_agent.tools if isinstance(t, McpToolset))
     assert toolset._connection_params.headers is None
 
 
-def test_openai_extra_headers_passed_through() -> None:
+def test_openai_extra_headers_passed_through(monkeypatch) -> None:
     mod = _reload_agent_with_env(
+        monkeypatch,
         MODEL_PROVIDER="openai",
         OPENAI_EXTRA_HEADERS='{"X-Backend": "openai-prod"}',
     )
@@ -103,13 +108,9 @@ def test_openai_extra_headers_passed_through() -> None:
     }
 
 
-def test_invalid_headers_json_raises() -> None:
-    os.environ["OPENAI_EXTRA_HEADERS"] = "not-json"
+def test_invalid_headers_json_raises(monkeypatch) -> None:
+    monkeypatch.setenv("OPENAI_EXTRA_HEADERS", "not-json")
     with pytest.raises(ValueError, match="must be a JSON object"):
         import app.agent
 
         importlib.reload(app.agent)
-    os.environ.pop("OPENAI_EXTRA_HEADERS", None)
-    import app.agent
-
-    importlib.reload(app.agent)
