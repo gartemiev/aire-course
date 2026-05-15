@@ -162,3 +162,106 @@ kubectl --kubeconfig lab-3/abox/bootstrap/abox-lab3-config \
    - **Don't wrap the entrypoint in `uv run`** inside the container. The image's venv is already baked at build time and `/app/.venv/bin` is on `PATH`, so `cmd: dev-http` runs the project's console script directly. `uv run` tries to populate `$HOME/.cache/uv`, which fails for the non-root `mcpuser`.
    - **`.python-version` must be committed.** The stock Python `.gitignore` excludes it; the Dockerfile copies it during `uv sync`. Without it, the CI build fails with `failed to compute cache key … "/.python-version": not found`.
    - **`discovery: disabled` on the MCPServer is intentional.** It stops the kmcp controller from auto-creating a `RemoteMCPServer` that would point at the Service. We want agents to traverse agentgateway so the gateway's MCP-aware features (session routing, observability) apply.
+
+
+3. **Custom Time agent, deployed as kagent BYO via GitOps.**
+
+   ### What the agent does
+
+   An ADK (Python) agent scaffolded with [google-agents-cli](https://google.github.io/agents-cli/), living at [abox/time-agent/](abox/time-agent/). It answers time/timezone questions by calling the custom time MCP server through agentgateway. Same image, two runtimes:
+
+   - **Locally:** `agents-cli playground` (ADK web UI on `:8080`) auto-discovers `app/agent.py` and runs an in-process Runner.
+   - **In Kubernetes (kagent BYO):** the container serves the [A2A protocol](https://adk.dev/a2a/) via `uvicorn app.a2a_app:a2a_app`; kagent creates a Deployment+Service from `spec.byo.deployment` and re-exposes it through the controller at `:8083/api/a2a/kagent/time-agent/.well-known/agent.json`.
+
+   Everything is env-var driven so the same image works in both: model provider, OpenAI base URL, MCP URL, optional routing headers.
+
+   ### Why an explicit A2A agent card
+
+   `to_a2a()` auto-generates an agent card from the ADK agent, but defaults `capabilities.streaming` to unset (treated as `false`). The kagent UI dials `message/stream` (SSE) — when the card says streaming isn't supported, the A2A SDK rejects the request with `Streaming is not supported by the agent` and the UI shows a red error box.
+
+   [`app/a2a_app.py`](abox/time-agent/app/a2a_app.py) builds the card explicitly with `AgentCapabilities(streaming=True)` and lists the two MCP tools as `AgentSkill` entries (the auto-builder would have populated those, but providing our own card bypasses it). An e2e test asserts `card.capabilities.streaming === true` so a regression fails CI instead of production.
+
+   ### Testing locally
+
+   `agents-cli playground` binds to `:8080`, so port-forward agentgateway to a different port to avoid the collision:
+
+   ```bash
+   # Terminal 1
+   kubectl -n agentgateway-system port-forward svc/agentgateway-external 8090:80
+
+   # Terminal 2
+   cd lab-3/abox/time-agent
+   export OPENAI_API_BASE=http://localhost:8090/v1
+   export TIME_MCP_URL=http://localhost:8090/mcp
+   export OPENAI_API_KEY=placeholder-gateway-handles-auth
+   agents-cli install
+   agents-cli playground   # http://127.0.0.1:8080/dev-ui
+   ```
+
+   Alternatively, run the MCP server locally and use your own OpenAI key (no cluster needed):
+
+   ```bash
+   cd lab-3/abox/time-mcp-server && uv sync && uv run dev-http &
+   cd ../time-agent
+   export TIME_MCP_URL=http://localhost:3000/mcp
+   export OPENAI_API_KEY=sk-…
+   unset OPENAI_API_BASE        # LiteLLM falls back to api.openai.com
+   agents-cli playground
+   ```
+
+   To exercise the same binary kagent BYO will run:
+
+   ```bash
+   uv run uvicorn app.a2a_app:a2a_app --host 127.0.0.1 --port 8080
+   curl http://127.0.0.1:8080/.well-known/agent-card.json | jq .capabilities
+   # expect: { "streaming": true, ... }
+   ```
+
+   Tests:
+
+   ```bash
+   uv run pytest tests/unit                            # always runs, no network
+   uv run pytest tests/integration/test_server_e2e.py  # boots A2A locally, no LLM call
+   uv run pytest tests/integration                     # requires TIME_MCP_URL reachable
+   uv run adk eval tests/eval/evalsets/basic.evalset.json \
+     --config_file_path tests/eval/eval_config.json
+   ```
+
+   ### Files
+
+   | Path | Purpose |
+   | --- | --- |
+   | [abox/time-agent/app/agent.py](abox/time-agent/app/agent.py) | `root_agent` definition. Env-switchable model (`MODEL_PROVIDER=openai\|gemini`), MCP toolset filtered to `get_current_time` + `convert_time`, optional `OPENAI_EXTRA_HEADERS` / `MCP_EXTRA_HEADERS` for header-based gateway routing. |
+   | [abox/time-agent/app/a2a_app.py](abox/time-agent/app/a2a_app.py) | A2A entrypoint for BYO. Builds the agent card explicitly with `streaming=true`. |
+   | [abox/time-agent/Dockerfile](abox/time-agent/Dockerfile) | Builds the BYO image. CMD runs `uvicorn app.a2a_app:a2a_app`. |
+   | [abox/time-agent/tests/](abox/time-agent/tests/) | Unit tests (no network), A2A smoke test, MCP-required integration tests, ADK evalset. |
+   | [.github/workflows/time-agent-image-lab3.yaml](../.github/workflows/time-agent-image-lab3.yaml) | Multi-arch image build. Branch pushes build-only (sanity check); `lab-3-time-agent-*` tags publish to GHCR. |
+   | [abox/releases/time-agent.yaml](abox/releases/time-agent.yaml) | kagent `Agent` of `spec.type: BYO`, pinned to a versioned image, with env wiring for model + MCP URLs. |
+
+   ### Release cycle for the agent
+
+   Same pattern as the MCP server — image and bundle version independently.
+
+   - **Change the agent code/Dockerfile** → push to `main` runs the build (no publish) → cut an image tag when ready:
+     ```bash
+     git tag lab-3-time-agent-0.1.2
+     git push origin lab-3-time-agent-0.1.2
+     ```
+     The workflow publishes `ghcr.io/<owner>/aire-course/lab-3/time-agent:0.1.2`. First publish: make the GHCR package public.
+
+   - **Change the deployment** (image pin, env, resources, …) → edit [abox/releases/time-agent.yaml](abox/releases/time-agent.yaml) → commit, push, then from `abox/`:
+     ```bash
+     make push
+     ```
+
+   ### Gotchas worth knowing
+
+   - **kagent UI uses A2A `message/stream`.** The auto-generated agent card from `to_a2a()` declares `streaming: false` by default. Without the explicit `AgentCard(capabilities=AgentCapabilities(streaming=True))` in [a2a_app.py](abox/time-agent/app/a2a_app.py), every chat hits a 500 with `Streaming is not supported by the agent`.
+   - **Port 8080 collides with `agents-cli playground`.** The local dev UI binds to `:8080` — pick a different port (e.g. `:8090`) when port-forwarding the gateway, otherwise LiteLLM ends up POSTing `/v1/chat/completions` to the agent itself and gets a 404 instead of a model response.
+   - **`OPENAI_API_BASE` unset ≠ empty string.** Earlier versions of [agent.py](abox/time-agent/app/agent.py) defaulted to `http://localhost:8080/v1`, which silently routed back to the agent's own port. The current code passes `api_base` only when the env var is non-empty so an unset value correctly falls through to LiteLLM's `api.openai.com` default.
+   - **BYO does not consult `ModelConfig` or `RemoteMCPServer`.** Those CRDs only feed the Declarative runtime. For BYO, all model and MCP wiring lives in `spec.byo.deployment.env` — `kubectl describe agent time-agent` is the source of truth, not `kubectl get modelconfig`.
+   - **Flux `Stalled: True` after a 10-min install timeout doesn't auto-retry.** If the kagent HelmRelease times out at first install (e.g. `kagent-controller` Deployment slow to become Ready), the entire `releases` kustomization stays in `HealthCheckFailed` and your new `time-agent.yaml` never reconciles. Kick it manually:
+     ```bash
+     flux reconcile helmrelease kagent -n kagent --force
+     ```
+   - **`pyproject.toml`'s `hatch.build.targets.wheel.packages` listed a non-existent `frontend` package** when the project was scaffolded. Pruned to `["app"]` — otherwise `uv build` (clean wheel build, not editable install) would fail.
