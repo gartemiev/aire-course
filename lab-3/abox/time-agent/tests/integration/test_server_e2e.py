@@ -110,5 +110,7 @@ def test_agent_card_served(a2a_server: str) -> None:
     card = resp.json()
     assert card["name"] == "root_agent"
     assert card.get("protocolVersion"), "agent card missing protocolVersion"
+    # kagent UI uses A2A message/stream — capability must be advertised.
+    assert card["capabilities"]["streaming"] is True, card["capabilities"]
     skill_ids = {s["id"] for s in card.get("skills", [])}
-    assert "root_agent" in skill_ids, skill_ids
+    assert {"get_current_time", "convert_time"}.issubset(skill_ids), skill_ids
