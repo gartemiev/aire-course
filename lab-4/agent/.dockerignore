@@ -1,0 +1,21 @@
+# Local ADK state (sessions, eval results) — regenerated at runtime.
+app/.adk/
+
+# Python caches and venvs
+**/__pycache__/
+**/*.py[cod]
+.venv/
+.venv*/
+*.egg-info/
+
+# Tests aren't needed in the runtime image.
+tests/
+
+# Tooling/docs that don't affect the runtime image.
+.git/
+.gitignore
+.github/
+.idea/
+.vscode/
+.DS_Store
+CLAUDE.md

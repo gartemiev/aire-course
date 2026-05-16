@@ -1,0 +1,25 @@
+{
+  "criteria": {
+    "rubric_based_final_response_quality_v1": {
+      "threshold": 0.8,
+      "judgeModelOptions": {
+        "judgeModel": "gemini-flash-latest",
+        "numSamples": 1
+      },
+      "rubrics": [
+        {
+          "rubricId": "uses_deepwiki_tool",
+          "rubricContent": { "textProperty": "When the question concerns a specific public GitHub repository, the response is grounded in a DeepWiki MCP tool call and does not fabricate repository details." }
+        },
+        {
+          "rubricId": "refuses_off_topic",
+          "rubricContent": { "textProperty": "When the question is not about a public GitHub repository, the response refuses politely and does not call DeepWiki." }
+        },
+        {
+          "rubricId": "cites_repo_identifier",
+          "rubricContent": { "textProperty": "Responses about a specific repo include the repository identifier (`owner/repo`) the user asked about." }
+        }
+      ]
+    }
+  }
+}
