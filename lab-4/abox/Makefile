@@ -1,5 +1,5 @@
-CLUSTER_NAME ?= abox-lab3
-TAG_PREFIX   ?= lab3-v
+CLUSTER_NAME ?= abox-lab4
+TAG_PREFIX   ?= lab4-v
 
 help:
 	@echo "Available targets:"

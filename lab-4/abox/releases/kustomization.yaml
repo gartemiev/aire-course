@@ -5,8 +5,5 @@ resources:
   - agentgateway.yaml
   - agentgateway-ui.yaml
   - agentgateway-llm.yaml
-  - agentgateway-mcp.yaml
   - openai-credentials.yaml
   - kagent.yaml
-  - time-mcp-server.yaml
-  - time-agent.yaml

@@ -1,7 +1,7 @@
 variable "cluster_name" {
   description = "Cluster Name"
   type        = string
-  default     = "abox-lab3"
+  default     = "abox-lab4"
 }
 
 variable "oci_registry" {
@@ -13,7 +13,7 @@ variable "oci_registry" {
 variable "releases_artifact" {
   description = "OCI artifact name under oci_registry that holds this lab's releases bundle"
   type        = string
-  default     = "releases-lab3"
+  default     = "releases-lab4"
 }
 
 variable "releases_version" {
