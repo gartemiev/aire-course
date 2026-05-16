@@ -30,7 +30,7 @@ spec:
   description: "Answers natural-language questions about public GitHub repositories using the DeepWiki MCP server."
   byo:
     deployment:
-      image: ghcr.io/gartemiev/aire-course/lab-4/a2a-agent:0.1.0
+      image: ghcr.io/gartemiev/aire-course/lab-4/a2a-agent:0.1.1
       imagePullPolicy: IfNotPresent
       env:
         - name: MODEL_PROVIDER
@@ -107,6 +107,19 @@ spec:
     - path:
         type: PathPrefix
         value: /a2a
+    # Strip the gateway prefix so the agent's FastAPI (which mounts routes at
+    # root, image 0.1.1+) receives `/.well-known/agent-card.json`. Routes are
+    # decoupled from card.url by design: kagent BYO's hardcoded readiness probe
+    # hits `/.well-known/agent-card.json` on the pod, so we cannot move the
+    # served path. The card's `url` field still says http://<host>/a2a because
+    # we set A2A_BASE_URL accordingly — that is what an external client uses to
+    # reach the agent through this very rewrite.
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
     backendRefs:
     - name: public-github-docs-agent
       port: 8080

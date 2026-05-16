@@ -27,7 +27,6 @@ the agent's advertised surface.
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from urllib.parse import urlparse
 
 from a2a.server.apps import A2AFastAPIApplication
 from a2a.server.request_handlers import DefaultRequestHandler
@@ -47,15 +46,14 @@ from app.agent import app as adk_app
 from app.app_utils.telemetry import setup_telemetry
 from app.app_utils.typing import Feedback
 
-# Externally-reachable base URL. Locally this is the uvicorn host; in cluster
-# it must be set to the gateway URL plus the HTTPRoute prefix
-# (e.g. http://<gateway-ip>/a2a) so that AgentCard.url matches the path the
-# gateway actually serves under.
+# Externally-reachable base URL — drives ONLY the AgentCard.url field (what
+# clients see). Routes are always mounted at the root of this app; any
+# gateway-side prefix (e.g. /a2a) must be stripped by an HTTPRoute URLRewrite
+# so the kagent BYO readiness probe at `/.well-known/agent-card.json` keeps
+# hitting a 200. Decoupling card.url from the served path is what lets the
+# same image satisfy both kagent's hardcoded probe AND the A2A spec's
+# requirement that `{url}/.well-known/agent-card.json` resolves to the card.
 A2A_BASE_URL = os.getenv("A2A_BASE_URL", "http://localhost:8080").rstrip("/")
-# Path portion of A2A_BASE_URL drives where this app mounts its A2A routes,
-# so card discovery at `{A2A_BASE_URL}/.well-known/agent-card.json` resolves
-# without gateway path rewriting.
-A2A_BASE_PATH = urlparse(A2A_BASE_URL).path.rstrip("/")
 
 AGENT_VERSION = os.getenv("AGENT_VERSION", "0.1.0")
 
@@ -136,9 +134,9 @@ async def lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
     )
     a2a_app.add_routes_to_app(
         app_instance,
-        agent_card_url=f"{A2A_BASE_PATH}{AGENT_CARD_WELL_KNOWN_PATH}",
-        rpc_url=A2A_BASE_PATH or "/",
-        extended_agent_card_url=f"{A2A_BASE_PATH}{EXTENDED_AGENT_CARD_PATH}",
+        agent_card_url=AGENT_CARD_WELL_KNOWN_PATH,
+        rpc_url="/",
+        extended_agent_card_url=EXTENDED_AGENT_CARD_PATH,
     )
     yield
 
