@@ -1,0 +1,905 @@
+{
+  "eval_set_result_id": "app_single_eval_1778951331.080279",
+  "eval_set_result_name": "app_single_eval_1778951331.080279",
+  "eval_set_id": "single_eval",
+  "eval_case_results": [
+    {
+      "eval_set_file": "single_eval",
+      "eval_set_id": "single_eval",
+      "eval_id": "repo_routing_envoy",
+      "final_eval_status": 3,
+      "eval_metric_results": null,
+      "overall_eval_metric_results": [
+        {
+          "metric_name": "rubric_based_final_response_quality_v1",
+          "threshold": 0.8,
+          "criterion": {
+            "threshold": 0.8,
+            "judgeModelOptions": {
+              "judgeModel": "gemini-flash-latest",
+              "numSamples": 1
+            },
+            "rubrics": [
+              {
+                "rubricId": "uses_deepwiki_tool",
+                "rubricContent": {
+                  "textProperty": "When the question concerns a specific public GitHub repository, the response is grounded in a DeepWiki MCP tool call and does not fabricate repository details."
+                }
+              },
+              {
+                "rubricId": "refuses_off_topic",
+                "rubricContent": {
+                  "textProperty": "When the question is not about a public GitHub repository, the response refuses politely and does not call DeepWiki."
+                }
+              },
+              {
+                "rubricId": "cites_repo_identifier",
+                "rubricContent": {
+                  "textProperty": "Responses about a specific repo include the repository identifier (`owner/repo`) the user asked about."
+                }
+              }
+            ]
+          },
+          "custom_function_path": null,
+          "score": null,
+          "eval_status": 3,
+          "details": {
+            "rubric_scores": null
+          }
+        }
+      ],
+      "eval_metric_result_per_invocation": [
+        {
+          "actual_invocation": {
+            "invocation_id": "e-013d6de7-db4e-4184-8d18-72a1a15a1cad",
+            "user_content": {
+              "parts": [
+                {
+                  "media_resolution": null,
+                  "code_execution_result": null,
+                  "executable_code": null,
+                  "file_data": null,
+                  "function_call": null,
+                  "function_response": null,
+                  "inline_data": null,
+                  "text": "How does request routing work in envoyproxy/envoy?",
+                  "thought": null,
+                  "thought_signature": null,
+                  "video_metadata": null,
+                  "tool_call": null,
+                  "tool_response": null,
+                  "part_metadata": null
+                }
+              ],
+              "role": "user"
+            },
+            "final_response": {
+              "parts": [
+                {
+                  "media_resolution": null,
+                  "code_execution_result": null,
+                  "executable_code": null,
+                  "file_data": null,
+                  "function_call": null,
+                  "function_response": null,
+                  "inline_data": null,
+                  "text": "In the envoyproxy/envoy repository, request routing is primarily handled by the Router HTTP filter, which uses a hierarchical configuration to match incoming requests to upstream clusters. The routing process involves several key components: RouteConfiguration, VirtualHost, Route, and RouteMatch.\n\nThe mechanism works as follows:\n1. The HTTP Connection Manager (Http::ConnectionManagerImpl) manages HTTP connections and the filter chains. It owns the RouteConfiguration used by all configured HTTP filters.\n2. Requests pass through a series of HTTP filters. The Router::Filter is usually the last filter and is responsible for forwarding requests upstream.\n3. The RouteConfiguration defines the overall routing table, containing an array of VirtualHost objects.\n4. A VirtualHost has a logical name and a set of domains matched based on the incoming request's host header. After selecting a virtual host, its routes are processed.\n5. Each VirtualHost contains a list of Route objects. A Route specifies how to match a request and what action to take, such as redirect, forward, or rewrite. Routes are processed in order, and the first matching route is used.\n6. RouteMatch defines criteria for matching requests, including prefix, path, regex, headers, or query parameters. Envoy supports case-sensitive and insensitive matching and regex path matching.\n7. RouteAction specifies the action for a matched route, such as routing to a cluster, weighted clusters, retries, or timeouts. Other actions include redirects and direct HTTP responses without proxying.\n8. The Router::Filter selects an upstream cluster based on the matched route. The Upstream::ClusterManager manages cluster configuration, and the Upstream::LoadBalancer selects a host within the cluster.\n\nAdvanced routing features include retries and hedging, traffic shifting and splitting, priority routing with different connection pools and circuit breaking settings, and sublinear route matching for large route sets with Trie-based or HashMap-based performance improvements.\n\nAn example configuration is found in configs/envoy_service_to_service.template.yaml, defining virtual hosts with domains and routes matching prefixes directing traffic to specific clusters.\n\nFor a deeper dive, the docs/root/intro/arch_overview/http/http_routing.rst file explains HTTP routing features in detail, and protobuf definitions are located in api/envoy/config/route/v3/route_components.proto and route.proto.\n\nIf you want, I can provide links or more details on specific parts of the routing configuration or code.",
+                  "thought": null,
+                  "thought_signature": null,
+                  "video_metadata": null,
+                  "tool_call": null,
+                  "tool_response": null,
+                  "part_metadata": null
+                }
+              ],
+              "role": "model"
+            },
+            "intermediate_data": {
+              "invocation_events": [
+                {
+                  "author": "public_github_docs_agent",
+                  "content": {
+                    "parts": [
+                      {
+                        "media_resolution": null,
+                        "code_execution_result": null,
+                        "executable_code": null,
+                        "file_data": null,
+                        "function_call": {
+                          "id": "call_yqCfgKISUvMpIaXpq3wViPUg",
+                          "args": {
+                            "repoName": "envoyproxy/envoy",
+                            "question": "How does request routing work in envoyproxy/envoy?"
+                          },
+                          "name": "ask_question",
+                          "partial_args": null,
+                          "will_continue": null
+                        },
+                        "function_response": null,
+                        "inline_data": null,
+                        "text": null,
+                        "thought": null,
+                        "thought_signature": null,
+                        "video_metadata": null,
+                        "tool_call": null,
+                        "tool_response": null,
+                        "part_metadata": null
+                      }
+                    ],
+                    "role": "model"
+                  }
+                },
+                {
+                  "author": "public_github_docs_agent",
+                  "content": {
+                    "parts": [
+                      {
+                        "media_resolution": null,
+                        "code_execution_result": null,
+                        "executable_code": null,
+                        "file_data": null,
+                        "function_call": null,
+                        "function_response": {
+                          "will_continue": null,
+                          "scheduling": null,
+                          "parts": null,
+                          "id": "call_yqCfgKISUvMpIaXpq3wViPUg",
+                          "name": "ask_question",
+                          "response": {
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "In Envoy, request routing is primarily handled by the `Router` HTTP filter, which uses a hierarchical configuration to match incoming requests to upstream clusters . The routing process involves several key components: `RouteConfiguration`, `VirtualHost`, `Route`, and `RouteMatch` .\n\n## Request Routing Mechanism\n\n1.  **HTTP Connection Manager (HCM)**: The `Http::ConnectionManagerImpl` manages HTTP connections and coordinates the filter chains . It owns the `RouteConfiguration` that is used by all configured HTTP filters .\n\n2.  **HTTP Filter Chain**: Requests pass through a series of HTTP filters . The `Router::Filter` is typically the last filter in this chain and is responsible for forwarding requests upstream .\n\n3.  **Route Configuration**: The `RouteConfiguration` (`envoy.config.route.v3.RouteConfiguration`) defines the overall routing table . It contains an array of `VirtualHost` objects .\n\n4.  **Virtual Hosts**: A `VirtualHost` (`envoy.config.route.v3.VirtualHost`) has a logical name and a set of domains that are routed to it based on the incoming request's host header . Once a virtual host is selected, its routes are processed .\n\n5.  **Routes**: Each `VirtualHost` contains a list of `Route` objects (`envoy.config.route.v3.Route`) . A `Route` specifies how to match a request and what action to take (e.g., redirect, forward, rewrite) . Routes are processed in order, and the first one that matches is used .\n\n6.  **Route Matching**: A `RouteMatch` (`envoy.config.route.v3.RouteMatch`) defines the criteria for matching a request, such as prefix, path, regex, headers, or query parameters  . Envoy supports case-sensitive and insensitive matching, as well as regex path matching .\n\n7.  **Route Actions**: Once a route is matched, a `RouteAction` (`envoy.config.route.v3.RouteAction`) specifies the action to perform, such as routing to a cluster, weighted clusters, retries, or timeouts  . Other actions include `RedirectAction` for redirects and `DirectResponseAction` for returning direct HTTP responses without proxying .\n\n8.  **Cluster Selection and Load Balancing**: The `Router::Filter` selects an upstream cluster based on the matched route . The `Upstream::ClusterManager` manages upstream cluster configuration, and the `Upstream::LoadBalancer` selects an upstream host within that cluster .\n\n## Advanced Routing Features\n\nEnvoy's router filter supports various advanced features:\n\n*   **Retries and Hedging**: Requests can be retried based on configured policies, including exponential back-off and feedback from upstream servers . Request hedging allows racing multiple simultaneous upstream requests .\n*   **Traffic Shifting and Splitting**: Traffic can be shifted between clusters using runtime values or split across multiple clusters based on weights .\n*   **Priority Routing**: Different priority levels (`default` and `high`) can be configured at the route level, using separate connection pools and circuit breaking settings .\n*   **Sublinear Route Matching**: For large numbers of routes, Envoy can use a generic match tree with Trie-based or HashMap-based matching for improved performance .\n\n## Configuration Example\n\nAn example of a `RouteConfiguration` can be seen in `configs/envoy_service_to_service.template.yaml`, where virtual hosts are defined with domains and routes that match prefixes and direct traffic to specific clusters .\n\n## Notes\n\nThe `Overview` wiki page provides a high-level introduction to the Envoy Proxy codebase, including its architecture and major subsystems . The `docs/root/intro/arch_overview/http/http_routing.rst` file offers a detailed explanation of HTTP routing features . The `api/envoy/config/route/v3/route_components.proto` and `api/envoy/config/route/v3/route.proto` files define the protobuf structures for route configuration components  .\n\nWiki pages you might want to explore:\n- [Overview (envoyproxy/envoy)](/wiki/envoyproxy/envoy#1)\n\nView this search on DeepWiki: https://deepwiki.com/search/how-does-request-routing-work_347743bc-9079-4635-b13f-b792f24af7e4\n"
+                              }
+                            ],
+                            "structuredContent": {
+                              "result": "In Envoy, request routing is primarily handled by the `Router` HTTP filter, which uses a hierarchical configuration to match incoming requests to upstream clusters . The routing process involves several key components: `RouteConfiguration`, `VirtualHost`, `Route`, and `RouteMatch` .\n\n## Request Routing Mechanism\n\n1.  **HTTP Connection Manager (HCM)**: The `Http::ConnectionManagerImpl` manages HTTP connections and coordinates the filter chains . It owns the `RouteConfiguration` that is used by all configured HTTP filters .\n\n2.  **HTTP Filter Chain**: Requests pass through a series of HTTP filters . The `Router::Filter` is typically the last filter in this chain and is responsible for forwarding requests upstream .\n\n3.  **Route Configuration**: The `RouteConfiguration` (`envoy.config.route.v3.RouteConfiguration`) defines the overall routing table . It contains an array of `VirtualHost` objects .\n\n4.  **Virtual Hosts**: A `VirtualHost` (`envoy.config.route.v3.VirtualHost`) has a logical name and a set of domains that are routed to it based on the incoming request's host header . Once a virtual host is selected, its routes are processed .\n\n5.  **Routes**: Each `VirtualHost` contains a list of `Route` objects (`envoy.config.route.v3.Route`) . A `Route` specifies how to match a request and what action to take (e.g., redirect, forward, rewrite) . Routes are processed in order, and the first one that matches is used .\n\n6.  **Route Matching**: A `RouteMatch` (`envoy.config.route.v3.RouteMatch`) defines the criteria for matching a request, such as prefix, path, regex, headers, or query parameters  . Envoy supports case-sensitive and insensitive matching, as well as regex path matching .\n\n7.  **Route Actions**: Once a route is matched, a `RouteAction` (`envoy.config.route.v3.RouteAction`) specifies the action to perform, such as routing to a cluster, weighted clusters, retries, or timeouts  . Other actions include `RedirectAction` for redirects and `DirectResponseAction` for returning direct HTTP responses without proxying .\n\n8.  **Cluster Selection and Load Balancing**: The `Router::Filter` selects an upstream cluster based on the matched route . The `Upstream::ClusterManager` manages upstream cluster configuration, and the `Upstream::LoadBalancer` selects an upstream host within that cluster .\n\n## Advanced Routing Features\n\nEnvoy's router filter supports various advanced features:\n\n*   **Retries and Hedging**: Requests can be retried based on configured policies, including exponential back-off and feedback from upstream servers . Request hedging allows racing multiple simultaneous upstream requests .\n*   **Traffic Shifting and Splitting**: Traffic can be shifted between clusters using runtime values or split across multiple clusters based on weights .\n*   **Priority Routing**: Different priority levels (`default` and `high`) can be configured at the route level, using separate connection pools and circuit breaking settings .\n*   **Sublinear Route Matching**: For large numbers of routes, Envoy can use a generic match tree with Trie-based or HashMap-based matching for improved performance .\n\n## Configuration Example\n\nAn example of a `RouteConfiguration` can be seen in `configs/envoy_service_to_service.template.yaml`, where virtual hosts are defined with domains and routes that match prefixes and direct traffic to specific clusters .\n\n## Notes\n\nThe `Overview` wiki page provides a high-level introduction to the Envoy Proxy codebase, including its architecture and major subsystems . The `docs/root/intro/arch_overview/http/http_routing.rst` file offers a detailed explanation of HTTP routing features . The `api/envoy/config/route/v3/route_components.proto` and `api/envoy/config/route/v3/route.proto` files define the protobuf structures for route configuration components  .\n\nWiki pages you might want to explore:\n- [Overview (envoyproxy/envoy)](/wiki/envoyproxy/envoy#1)\n\nView this search on DeepWiki: https://deepwiki.com/search/how-does-request-routing-work_347743bc-9079-4635-b13f-b792f24af7e4\n"
+                            },
+                            "isError": false
+                          }
+                        },
+                        "inline_data": null,
+                        "text": null,
+                        "thought": null,
+                        "thought_signature": null,
+                        "video_metadata": null,
+                        "tool_call": null,
+                        "tool_response": null,
+                        "part_metadata": null
+                      }
+                    ],
+                    "role": "user"
+                  }
+                }
+              ]
+            },
+            "creation_timestamp": 1778951311.829555,
+            "rubrics": null,
+            "app_details": {
+              "agent_details": {
+                "public_github_docs_agent": {
+                  "name": "public_github_docs_agent",
+                  "instructions": "You are the Public GitHub Documentation Agent. You answer natural-language questions about *public* GitHub repositories by delegating retrieval to the DeepWiki MCP tool. DeepWiki is your only source of repository knowledge — never answer repo questions from memory.\n\nRules — follow strictly, no exceptions:\n1. For every question about a specific public GitHub repository, you MUST call a DeepWiki MCP tool. Do not paraphrase your training data.\n2. If the question is not about a public GitHub repository (general knowledge, private repos, non-GitHub sources, opinions, anything off topic), refuse politely in one or two short plain-text sentences and do NOT call any tool.\n3. When you do answer, mention the `owner/repo` identifier the user asked about. Do not fabricate citations or contents.\n4. If DeepWiki returns an error, times out, or has no relevant content, reply in plain text explaining that DeepWiki was unreachable or returned nothing — never raise an A2A error and never invent an answer.\n\nYou are an agent. Your internal name is \"public_github_docs_agent\". The description about you is \"Answers natural-language questions about public GitHub repositories. Uses DeepWiki MCP to retrieve and synthesise repository documentation.\".",
+                  "tool_declarations": [
+                    {
+                      "retrieval": null,
+                      "computer_use": null,
+                      "file_search": null,
+                      "google_search": null,
+                      "google_maps": null,
+                      "code_execution": null,
+                      "enterprise_web_search": null,
+                      "function_declarations": [
+                        {
+                          "description": "Get a list of documentation topics for a GitHub repository.\n\nArgs:\n    repoName: GitHub repository in owner/repo format (e.g. \"facebook/react\")",
+                          "name": "read_wiki_structure",
+                          "parameters": {
+                            "additional_properties": null,
+                            "defs": null,
+                            "ref": null,
+                            "any_of": null,
+                            "default": null,
+                            "description": null,
+                            "enum": null,
+                            "example": null,
+                            "format": null,
+                            "items": null,
+                            "max_items": null,
+                            "max_length": null,
+                            "max_properties": null,
+                            "maximum": null,
+                            "min_items": null,
+                            "min_length": null,
+                            "min_properties": null,
+                            "minimum": null,
+                            "nullable": null,
+                            "pattern": null,
+                            "properties": {
+                              "repoName": {
+                                "additional_properties": null,
+                                "defs": null,
+                                "ref": null,
+                                "any_of": null,
+                                "default": null,
+                                "description": null,
+                                "enum": null,
+                                "example": null,
+                                "format": null,
+                                "items": null,
+                                "max_items": null,
+                                "max_length": null,
+                                "max_properties": null,
+                                "maximum": null,
+                                "min_items": null,
+                                "min_length": null,
+                                "min_properties": null,
+                                "minimum": null,
+                                "nullable": null,
+                                "pattern": null,
+                                "properties": null,
+                                "property_ordering": null,
+                                "required": null,
+                                "title": null,
+                                "type": "STRING"
+                              }
+                            },
+                            "property_ordering": null,
+                            "required": [
+                              "repoName"
+                            ],
+                            "title": null,
+                            "type": "OBJECT"
+                          },
+                          "parameters_json_schema": null,
+                          "response": null,
+                          "response_json_schema": null,
+                          "behavior": null
+                        },
+                        {
+                          "description": "View documentation about a GitHub repository.\n\nArgs:\n    repoName: GitHub repository in owner/repo format (e.g. \"facebook/react\")",
+                          "name": "read_wiki_contents",
+                          "parameters": {
+                            "additional_properties": null,
+                            "defs": null,
+                            "ref": null,
+                            "any_of": null,
+                            "default": null,
+                            "description": null,
+                            "enum": null,
+                            "example": null,
+                            "format": null,
+                            "items": null,
+                            "max_items": null,
+                            "max_length": null,
+                            "max_properties": null,
+                            "maximum": null,
+                            "min_items": null,
+                            "min_length": null,
+                            "min_properties": null,
+                            "minimum": null,
+                            "nullable": null,
+                            "pattern": null,
+                            "properties": {
+                              "repoName": {
+                                "additional_properties": null,
+                                "defs": null,
+                                "ref": null,
+                                "any_of": null,
+                                "default": null,
+                                "description": null,
+                                "enum": null,
+                                "example": null,
+                                "format": null,
+                                "items": null,
+                                "max_items": null,
+                                "max_length": null,
+                                "max_properties": null,
+                                "maximum": null,
+                                "min_items": null,
+                                "min_length": null,
+                                "min_properties": null,
+                                "minimum": null,
+                                "nullable": null,
+                                "pattern": null,
+                                "properties": null,
+                                "property_ordering": null,
+                                "required": null,
+                                "title": null,
+                                "type": "STRING"
+                              }
+                            },
+                            "property_ordering": null,
+                            "required": [
+                              "repoName"
+                            ],
+                            "title": null,
+                            "type": "OBJECT"
+                          },
+                          "parameters_json_schema": null,
+                          "response": null,
+                          "response_json_schema": null,
+                          "behavior": null
+                        },
+                        {
+                          "description": "Ask any question about a GitHub repository and get an AI-powered, context-grounded response.\n\nArgs:\n    repoName: GitHub repository or list of repositories (max 10) in owner/repo format\n    question: The question to ask about the repository",
+                          "name": "ask_question",
+                          "parameters": {
+                            "additional_properties": null,
+                            "defs": null,
+                            "ref": null,
+                            "any_of": null,
+                            "default": null,
+                            "description": null,
+                            "enum": null,
+                            "example": null,
+                            "format": null,
+                            "items": null,
+                            "max_items": null,
+                            "max_length": null,
+                            "max_properties": null,
+                            "maximum": null,
+                            "min_items": null,
+                            "min_length": null,
+                            "min_properties": null,
+                            "minimum": null,
+                            "nullable": null,
+                            "pattern": null,
+                            "properties": {
+                              "repoName": {
+                                "additional_properties": null,
+                                "defs": null,
+                                "ref": null,
+                                "any_of": [
+                                  {
+                                    "additional_properties": null,
+                                    "defs": null,
+                                    "ref": null,
+                                    "any_of": null,
+                                    "default": null,
+                                    "description": null,
+                                    "enum": null,
+                                    "example": null,
+                                    "format": null,
+                                    "items": null,
+                                    "max_items": null,
+                                    "max_length": null,
+                                    "max_properties": null,
+                                    "maximum": null,
+                                    "min_items": null,
+                                    "min_length": null,
+                                    "min_properties": null,
+                                    "minimum": null,
+                                    "nullable": null,
+                                    "pattern": null,
+                                    "properties": null,
+                                    "property_ordering": null,
+                                    "required": null,
+                                    "title": null,
+                                    "type": "STRING"
+                                  },
+                                  {
+                                    "additional_properties": null,
+                                    "defs": null,
+                                    "ref": null,
+                                    "any_of": null,
+                                    "default": null,
+                                    "description": null,
+                                    "enum": null,
+                                    "example": null,
+                                    "format": null,
+                                    "items": {
+                                      "additional_properties": null,
+                                      "defs": null,
+                                      "ref": null,
+                                      "any_of": null,
+                                      "default": null,
+                                      "description": null,
+                                      "enum": null,
+                                      "example": null,
+                                      "format": null,
+                                      "items": null,
+                                      "max_items": null,
+                                      "max_length": null,
+                                      "max_properties": null,
+                                      "maximum": null,
+                                      "min_items": null,
+                                      "min_length": null,
+                                      "min_properties": null,
+                                      "minimum": null,
+                                      "nullable": null,
+                                      "pattern": null,
+                                      "properties": null,
+                                      "property_ordering": null,
+                                      "required": null,
+                                      "title": null,
+                                      "type": "STRING"
+                                    },
+                                    "max_items": null,
+                                    "max_length": null,
+                                    "max_properties": null,
+                                    "maximum": null,
+                                    "min_items": null,
+                                    "min_length": null,
+                                    "min_properties": null,
+                                    "minimum": null,
+                                    "nullable": null,
+                                    "pattern": null,
+                                    "properties": null,
+                                    "property_ordering": null,
+                                    "required": null,
+                                    "title": null,
+                                    "type": "ARRAY"
+                                  }
+                                ],
+                                "default": null,
+                                "description": null,
+                                "enum": null,
+                                "example": null,
+                                "format": null,
+                                "items": null,
+                                "max_items": null,
+                                "max_length": null,
+                                "max_properties": null,
+                                "maximum": null,
+                                "min_items": null,
+                                "min_length": null,
+                                "min_properties": null,
+                                "minimum": null,
+                                "nullable": null,
+                                "pattern": null,
+                                "properties": null,
+                                "property_ordering": null,
+                                "required": null,
+                                "title": null,
+                                "type": null
+                              },
+                              "question": {
+                                "additional_properties": null,
+                                "defs": null,
+                                "ref": null,
+                                "any_of": null,
+                                "default": null,
+                                "description": null,
+                                "enum": null,
+                                "example": null,
+                                "format": null,
+                                "items": null,
+                                "max_items": null,
+                                "max_length": null,
+                                "max_properties": null,
+                                "maximum": null,
+                                "min_items": null,
+                                "min_length": null,
+                                "min_properties": null,
+                                "minimum": null,
+                                "nullable": null,
+                                "pattern": null,
+                                "properties": null,
+                                "property_ordering": null,
+                                "required": null,
+                                "title": null,
+                                "type": "STRING"
+                              }
+                            },
+                            "property_ordering": null,
+                            "required": [
+                              "repoName",
+                              "question"
+                            ],
+                            "title": null,
+                            "type": "OBJECT"
+                          },
+                          "parameters_json_schema": null,
+                          "response": null,
+                          "response_json_schema": null,
+                          "behavior": null
+                        }
+                      ],
+                      "google_search_retrieval": null,
+                      "parallel_ai_search": null,
+                      "url_context": null,
+                      "mcp_servers": null
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "expected_invocation": {
+            "invocation_id": "",
+            "user_content": {
+              "parts": [
+                {
+                  "media_resolution": null,
+                  "code_execution_result": null,
+                  "executable_code": null,
+                  "file_data": null,
+                  "function_call": null,
+                  "function_response": null,
+                  "inline_data": null,
+                  "text": "How does request routing work in envoyproxy/envoy?",
+                  "thought": null,
+                  "thought_signature": null,
+                  "video_metadata": null,
+                  "tool_call": null,
+                  "tool_response": null,
+                  "part_metadata": null
+                }
+              ],
+              "role": "user"
+            },
+            "final_response": null,
+            "intermediate_data": null,
+            "creation_timestamp": 0.0,
+            "rubrics": null,
+            "app_details": null
+          },
+          "eval_metric_results": [
+            {
+              "metric_name": "rubric_based_final_response_quality_v1",
+              "threshold": 0.8,
+              "criterion": {
+                "threshold": 0.8,
+                "judgeModelOptions": {
+                  "judgeModel": "gemini-flash-latest",
+                  "numSamples": 1
+                },
+                "rubrics": [
+                  {
+                    "rubricId": "uses_deepwiki_tool",
+                    "rubricContent": {
+                      "textProperty": "When the question concerns a specific public GitHub repository, the response is grounded in a DeepWiki MCP tool call and does not fabricate repository details."
+                    }
+                  },
+                  {
+                    "rubricId": "refuses_off_topic",
+                    "rubricContent": {
+                      "textProperty": "When the question is not about a public GitHub repository, the response refuses politely and does not call DeepWiki."
+                    }
+                  },
+                  {
+                    "rubricId": "cites_repo_identifier",
+                    "rubricContent": {
+                      "textProperty": "Responses about a specific repo include the repository identifier (`owner/repo`) the user asked about."
+                    }
+                  }
+                ]
+              },
+              "custom_function_path": null,
+              "score": null,
+              "eval_status": 3,
+              "details": {
+                "rubric_scores": null
+              }
+            }
+          ]
+        }
+      ],
+      "session_id": "___eval___session___a4355a5e-1552-431b-bde7-731d959481aa",
+      "session_details": {
+        "id": "___eval___session___a4355a5e-1552-431b-bde7-731d959481aa",
+        "app_name": "app",
+        "user_id": "eval_user",
+        "state": {
+          "__llm_request_key__": "3d4ca2f3-0938-4b86-baf1-3bfe3805932f"
+        },
+        "events": [
+          {
+            "model_version": null,
+            "content": {
+              "parts": [
+                {
+                  "media_resolution": null,
+                  "code_execution_result": null,
+                  "executable_code": null,
+                  "file_data": null,
+                  "function_call": null,
+                  "function_response": null,
+                  "inline_data": null,
+                  "text": "How does request routing work in envoyproxy/envoy?",
+                  "thought": null,
+                  "thought_signature": null,
+                  "video_metadata": null,
+                  "tool_call": null,
+                  "tool_response": null,
+                  "part_metadata": null
+                }
+              ],
+              "role": "user"
+            },
+            "grounding_metadata": null,
+            "partial": null,
+            "turn_complete": null,
+            "finish_reason": null,
+            "error_code": null,
+            "error_message": null,
+            "interrupted": null,
+            "custom_metadata": null,
+            "usage_metadata": null,
+            "live_session_resumption_update": null,
+            "live_session_id": null,
+            "go_away": null,
+            "input_transcription": null,
+            "output_transcription": null,
+            "avg_logprobs": null,
+            "logprobs_result": null,
+            "cache_metadata": null,
+            "citation_metadata": null,
+            "interaction_id": null,
+            "invocation_id": "e-013d6de7-db4e-4184-8d18-72a1a15a1cad",
+            "author": "user",
+            "actions": {
+              "skip_summarization": null,
+              "state_delta": {},
+              "artifact_delta": {},
+              "transfer_to_agent": null,
+              "escalate": null,
+              "requested_auth_configs": {},
+              "requested_tool_confirmations": {},
+              "compaction": null,
+              "end_of_agent": null,
+              "agent_state": null,
+              "rewind_before_invocation_id": null,
+              "render_ui_widgets": null
+            },
+            "long_running_tool_ids": null,
+            "branch": null,
+            "id": "6e329750-ac1d-4441-be9b-286f3c94fc90",
+            "timestamp": 1778951307.6843252
+          },
+          {
+            "model_version": "gpt-4.1-mini-2025-04-14",
+            "content": {
+              "parts": [
+                {
+                  "media_resolution": null,
+                  "code_execution_result": null,
+                  "executable_code": null,
+                  "file_data": null,
+                  "function_call": {
+                    "id": "call_yqCfgKISUvMpIaXpq3wViPUg",
+                    "args": {
+                      "repoName": "envoyproxy/envoy",
+                      "question": "How does request routing work in envoyproxy/envoy?"
+                    },
+                    "name": "ask_question",
+                    "partial_args": null,
+                    "will_continue": null
+                  },
+                  "function_response": null,
+                  "inline_data": null,
+                  "text": null,
+                  "thought": null,
+                  "thought_signature": null,
+                  "video_metadata": null,
+                  "tool_call": null,
+                  "tool_response": null,
+                  "part_metadata": null
+                }
+              ],
+              "role": "model"
+            },
+            "grounding_metadata": null,
+            "partial": false,
+            "turn_complete": null,
+            "finish_reason": "STOP",
+            "error_code": null,
+            "error_message": null,
+            "interrupted": null,
+            "custom_metadata": {
+              "__llm_request_key__": "3bdd3648-016b-4d06-b8fb-d8fbb289d66d"
+            },
+            "usage_metadata": {
+              "cache_tokens_details": null,
+              "cached_content_token_count": 0,
+              "candidates_token_count": 33,
+              "candidates_tokens_details": null,
+              "prompt_token_count": 455,
+              "prompt_tokens_details": null,
+              "thoughts_token_count": null,
+              "tool_use_prompt_token_count": null,
+              "tool_use_prompt_tokens_details": null,
+              "total_token_count": 488,
+              "traffic_type": null
+            },
+            "live_session_resumption_update": null,
+            "live_session_id": null,
+            "go_away": null,
+            "input_transcription": null,
+            "output_transcription": null,
+            "avg_logprobs": null,
+            "logprobs_result": null,
+            "cache_metadata": null,
+            "citation_metadata": null,
+            "interaction_id": null,
+            "invocation_id": "e-013d6de7-db4e-4184-8d18-72a1a15a1cad",
+            "author": "public_github_docs_agent",
+            "actions": {
+              "skip_summarization": null,
+              "state_delta": {
+                "__llm_request_key__": "3bdd3648-016b-4d06-b8fb-d8fbb289d66d"
+              },
+              "artifact_delta": {},
+              "transfer_to_agent": null,
+              "escalate": null,
+              "requested_auth_configs": {},
+              "requested_tool_confirmations": {},
+              "compaction": null,
+              "end_of_agent": null,
+              "agent_state": null,
+              "rewind_before_invocation_id": null,
+              "render_ui_widgets": null
+            },
+            "long_running_tool_ids": [],
+            "branch": null,
+            "id": "d45eea86-af38-43af-a1ae-85c9eca49057",
+            "timestamp": 1778951309.671784
+          },
+          {
+            "model_version": null,
+            "content": {
+              "parts": [
+                {
+                  "media_resolution": null,
+                  "code_execution_result": null,
+                  "executable_code": null,
+                  "file_data": null,
+                  "function_call": null,
+                  "function_response": {
+                    "will_continue": null,
+                    "scheduling": null,
+                    "parts": null,
+                    "id": "call_yqCfgKISUvMpIaXpq3wViPUg",
+                    "name": "ask_question",
+                    "response": {
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "In Envoy, request routing is primarily handled by the `Router` HTTP filter, which uses a hierarchical configuration to match incoming requests to upstream clusters . The routing process involves several key components: `RouteConfiguration`, `VirtualHost`, `Route`, and `RouteMatch` .\n\n## Request Routing Mechanism\n\n1.  **HTTP Connection Manager (HCM)**: The `Http::ConnectionManagerImpl` manages HTTP connections and coordinates the filter chains . It owns the `RouteConfiguration` that is used by all configured HTTP filters .\n\n2.  **HTTP Filter Chain**: Requests pass through a series of HTTP filters . The `Router::Filter` is typically the last filter in this chain and is responsible for forwarding requests upstream .\n\n3.  **Route Configuration**: The `RouteConfiguration` (`envoy.config.route.v3.RouteConfiguration`) defines the overall routing table . It contains an array of `VirtualHost` objects .\n\n4.  **Virtual Hosts**: A `VirtualHost` (`envoy.config.route.v3.VirtualHost`) has a logical name and a set of domains that are routed to it based on the incoming request's host header . Once a virtual host is selected, its routes are processed .\n\n5.  **Routes**: Each `VirtualHost` contains a list of `Route` objects (`envoy.config.route.v3.Route`) . A `Route` specifies how to match a request and what action to take (e.g., redirect, forward, rewrite) . Routes are processed in order, and the first one that matches is used .\n\n6.  **Route Matching**: A `RouteMatch` (`envoy.config.route.v3.RouteMatch`) defines the criteria for matching a request, such as prefix, path, regex, headers, or query parameters  . Envoy supports case-sensitive and insensitive matching, as well as regex path matching .\n\n7.  **Route Actions**: Once a route is matched, a `RouteAction` (`envoy.config.route.v3.RouteAction`) specifies the action to perform, such as routing to a cluster, weighted clusters, retries, or timeouts  . Other actions include `RedirectAction` for redirects and `DirectResponseAction` for returning direct HTTP responses without proxying .\n\n8.  **Cluster Selection and Load Balancing**: The `Router::Filter` selects an upstream cluster based on the matched route . The `Upstream::ClusterManager` manages upstream cluster configuration, and the `Upstream::LoadBalancer` selects an upstream host within that cluster .\n\n## Advanced Routing Features\n\nEnvoy's router filter supports various advanced features:\n\n*   **Retries and Hedging**: Requests can be retried based on configured policies, including exponential back-off and feedback from upstream servers . Request hedging allows racing multiple simultaneous upstream requests .\n*   **Traffic Shifting and Splitting**: Traffic can be shifted between clusters using runtime values or split across multiple clusters based on weights .\n*   **Priority Routing**: Different priority levels (`default` and `high`) can be configured at the route level, using separate connection pools and circuit breaking settings .\n*   **Sublinear Route Matching**: For large numbers of routes, Envoy can use a generic match tree with Trie-based or HashMap-based matching for improved performance .\n\n## Configuration Example\n\nAn example of a `RouteConfiguration` can be seen in `configs/envoy_service_to_service.template.yaml`, where virtual hosts are defined with domains and routes that match prefixes and direct traffic to specific clusters .\n\n## Notes\n\nThe `Overview` wiki page provides a high-level introduction to the Envoy Proxy codebase, including its architecture and major subsystems . The `docs/root/intro/arch_overview/http/http_routing.rst` file offers a detailed explanation of HTTP routing features . The `api/envoy/config/route/v3/route_components.proto` and `api/envoy/config/route/v3/route.proto` files define the protobuf structures for route configuration components  .\n\nWiki pages you might want to explore:\n- [Overview (envoyproxy/envoy)](/wiki/envoyproxy/envoy#1)\n\nView this search on DeepWiki: https://deepwiki.com/search/how-does-request-routing-work_347743bc-9079-4635-b13f-b792f24af7e4\n"
+                        }
+                      ],
+                      "structuredContent": {
+                        "result": "In Envoy, request routing is primarily handled by the `Router` HTTP filter, which uses a hierarchical configuration to match incoming requests to upstream clusters . The routing process involves several key components: `RouteConfiguration`, `VirtualHost`, `Route`, and `RouteMatch` .\n\n## Request Routing Mechanism\n\n1.  **HTTP Connection Manager (HCM)**: The `Http::ConnectionManagerImpl` manages HTTP connections and coordinates the filter chains . It owns the `RouteConfiguration` that is used by all configured HTTP filters .\n\n2.  **HTTP Filter Chain**: Requests pass through a series of HTTP filters . The `Router::Filter` is typically the last filter in this chain and is responsible for forwarding requests upstream .\n\n3.  **Route Configuration**: The `RouteConfiguration` (`envoy.config.route.v3.RouteConfiguration`) defines the overall routing table . It contains an array of `VirtualHost` objects .\n\n4.  **Virtual Hosts**: A `VirtualHost` (`envoy.config.route.v3.VirtualHost`) has a logical name and a set of domains that are routed to it based on the incoming request's host header . Once a virtual host is selected, its routes are processed .\n\n5.  **Routes**: Each `VirtualHost` contains a list of `Route` objects (`envoy.config.route.v3.Route`) . A `Route` specifies how to match a request and what action to take (e.g., redirect, forward, rewrite) . Routes are processed in order, and the first one that matches is used .\n\n6.  **Route Matching**: A `RouteMatch` (`envoy.config.route.v3.RouteMatch`) defines the criteria for matching a request, such as prefix, path, regex, headers, or query parameters  . Envoy supports case-sensitive and insensitive matching, as well as regex path matching .\n\n7.  **Route Actions**: Once a route is matched, a `RouteAction` (`envoy.config.route.v3.RouteAction`) specifies the action to perform, such as routing to a cluster, weighted clusters, retries, or timeouts  . Other actions include `RedirectAction` for redirects and `DirectResponseAction` for returning direct HTTP responses without proxying .\n\n8.  **Cluster Selection and Load Balancing**: The `Router::Filter` selects an upstream cluster based on the matched route . The `Upstream::ClusterManager` manages upstream cluster configuration, and the `Upstream::LoadBalancer` selects an upstream host within that cluster .\n\n## Advanced Routing Features\n\nEnvoy's router filter supports various advanced features:\n\n*   **Retries and Hedging**: Requests can be retried based on configured policies, including exponential back-off and feedback from upstream servers . Request hedging allows racing multiple simultaneous upstream requests .\n*   **Traffic Shifting and Splitting**: Traffic can be shifted between clusters using runtime values or split across multiple clusters based on weights .\n*   **Priority Routing**: Different priority levels (`default` and `high`) can be configured at the route level, using separate connection pools and circuit breaking settings .\n*   **Sublinear Route Matching**: For large numbers of routes, Envoy can use a generic match tree with Trie-based or HashMap-based matching for improved performance .\n\n## Configuration Example\n\nAn example of a `RouteConfiguration` can be seen in `configs/envoy_service_to_service.template.yaml`, where virtual hosts are defined with domains and routes that match prefixes and direct traffic to specific clusters .\n\n## Notes\n\nThe `Overview` wiki page provides a high-level introduction to the Envoy Proxy codebase, including its architecture and major subsystems . The `docs/root/intro/arch_overview/http/http_routing.rst` file offers a detailed explanation of HTTP routing features . The `api/envoy/config/route/v3/route_components.proto` and `api/envoy/config/route/v3/route.proto` files define the protobuf structures for route configuration components  .\n\nWiki pages you might want to explore:\n- [Overview (envoyproxy/envoy)](/wiki/envoyproxy/envoy#1)\n\nView this search on DeepWiki: https://deepwiki.com/search/how-does-request-routing-work_347743bc-9079-4635-b13f-b792f24af7e4\n"
+                      },
+                      "isError": false
+                    }
+                  },
+                  "inline_data": null,
+                  "text": null,
+                  "thought": null,
+                  "thought_signature": null,
+                  "video_metadata": null,
+                  "tool_call": null,
+                  "tool_response": null,
+                  "part_metadata": null
+                }
+              ],
+              "role": "user"
+            },
+            "grounding_metadata": null,
+            "partial": null,
+            "turn_complete": null,
+            "finish_reason": null,
+            "error_code": null,
+            "error_message": null,
+            "interrupted": null,
+            "custom_metadata": null,
+            "usage_metadata": null,
+            "live_session_resumption_update": null,
+            "live_session_id": null,
+            "go_away": null,
+            "input_transcription": null,
+            "output_transcription": null,
+            "avg_logprobs": null,
+            "logprobs_result": null,
+            "cache_metadata": null,
+            "citation_metadata": null,
+            "interaction_id": null,
+            "invocation_id": "e-013d6de7-db4e-4184-8d18-72a1a15a1cad",
+            "author": "public_github_docs_agent",
+            "actions": {
+              "skip_summarization": null,
+              "state_delta": {},
+              "artifact_delta": {},
+              "transfer_to_agent": null,
+              "escalate": null,
+              "requested_auth_configs": {},
+              "requested_tool_confirmations": {},
+              "compaction": null,
+              "end_of_agent": null,
+              "agent_state": null,
+              "rewind_before_invocation_id": null,
+              "render_ui_widgets": null
+            },
+            "long_running_tool_ids": null,
+            "branch": null,
+            "id": "fe54e340-fa33-49da-a2ad-60bd100a409d",
+            "timestamp": 1778951325.403072
+          },
+          {
+            "model_version": "gpt-4.1-mini-2025-04-14",
+            "content": {
+              "parts": [
+                {
+                  "media_resolution": null,
+                  "code_execution_result": null,
+                  "executable_code": null,
+                  "file_data": null,
+                  "function_call": null,
+                  "function_response": null,
+                  "inline_data": null,
+                  "text": "In the envoyproxy/envoy repository, request routing is primarily handled by the Router HTTP filter, which uses a hierarchical configuration to match incoming requests to upstream clusters. The routing process involves several key components: RouteConfiguration, VirtualHost, Route, and RouteMatch.\n\nThe mechanism works as follows:\n1. The HTTP Connection Manager (Http::ConnectionManagerImpl) manages HTTP connections and the filter chains. It owns the RouteConfiguration used by all configured HTTP filters.\n2. Requests pass through a series of HTTP filters. The Router::Filter is usually the last filter and is responsible for forwarding requests upstream.\n3. The RouteConfiguration defines the overall routing table, containing an array of VirtualHost objects.\n4. A VirtualHost has a logical name and a set of domains matched based on the incoming request's host header. After selecting a virtual host, its routes are processed.\n5. Each VirtualHost contains a list of Route objects. A Route specifies how to match a request and what action to take, such as redirect, forward, or rewrite. Routes are processed in order, and the first matching route is used.\n6. RouteMatch defines criteria for matching requests, including prefix, path, regex, headers, or query parameters. Envoy supports case-sensitive and insensitive matching and regex path matching.\n7. RouteAction specifies the action for a matched route, such as routing to a cluster, weighted clusters, retries, or timeouts. Other actions include redirects and direct HTTP responses without proxying.\n8. The Router::Filter selects an upstream cluster based on the matched route. The Upstream::ClusterManager manages cluster configuration, and the Upstream::LoadBalancer selects a host within the cluster.\n\nAdvanced routing features include retries and hedging, traffic shifting and splitting, priority routing with different connection pools and circuit breaking settings, and sublinear route matching for large route sets with Trie-based or HashMap-based performance improvements.\n\nAn example configuration is found in configs/envoy_service_to_service.template.yaml, defining virtual hosts with domains and routes matching prefixes directing traffic to specific clusters.\n\nFor a deeper dive, the docs/root/intro/arch_overview/http/http_routing.rst file explains HTTP routing features in detail, and protobuf definitions are located in api/envoy/config/route/v3/route_components.proto and route.proto.\n\nIf you want, I can provide links or more details on specific parts of the routing configuration or code.",
+                  "thought": null,
+                  "thought_signature": null,
+                  "video_metadata": null,
+                  "tool_call": null,
+                  "tool_response": null,
+                  "part_metadata": null
+                }
+              ],
+              "role": "model"
+            },
+            "grounding_metadata": null,
+            "partial": false,
+            "turn_complete": null,
+            "finish_reason": "STOP",
+            "error_code": null,
+            "error_message": null,
+            "interrupted": null,
+            "custom_metadata": {
+              "__llm_request_key__": "3d4ca2f3-0938-4b86-baf1-3bfe3805932f"
+            },
+            "usage_metadata": {
+              "cache_tokens_details": null,
+              "cached_content_token_count": 0,
+              "candidates_token_count": 484,
+              "candidates_tokens_details": null,
+              "prompt_token_count": 2376,
+              "prompt_tokens_details": null,
+              "thoughts_token_count": null,
+              "tool_use_prompt_token_count": null,
+              "tool_use_prompt_tokens_details": null,
+              "total_token_count": 2860,
+              "traffic_type": null
+            },
+            "live_session_resumption_update": null,
+            "live_session_id": null,
+            "go_away": null,
+            "input_transcription": null,
+            "output_transcription": null,
+            "avg_logprobs": null,
+            "logprobs_result": null,
+            "cache_metadata": null,
+            "citation_metadata": null,
+            "interaction_id": null,
+            "invocation_id": "e-013d6de7-db4e-4184-8d18-72a1a15a1cad",
+            "author": "public_github_docs_agent",
+            "actions": {
+              "skip_summarization": null,
+              "state_delta": {
+                "__llm_request_key__": "3d4ca2f3-0938-4b86-baf1-3bfe3805932f"
+              },
+              "artifact_delta": {},
+              "transfer_to_agent": null,
+              "escalate": null,
+              "requested_auth_configs": {},
+              "requested_tool_confirmations": {},
+              "compaction": null,
+              "end_of_agent": null,
+              "agent_state": null,
+              "rewind_before_invocation_id": null,
+              "render_ui_widgets": null
+            },
+            "long_running_tool_ids": null,
+            "branch": null,
+            "id": "c1339721-995e-4755-bd46-4d1211593ce1",
+            "timestamp": 1778951325.406325
+          }
+        ],
+        "last_update_time": 1778951325.406325
+      },
+      "user_id": "eval_user"
+    }
+  ],
+  "creation_timestamp": 1778951331.080279
+}

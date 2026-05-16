@@ -1,0 +1,82 @@
+{
+  "eval_set_id": "basic_eval",
+  "name": "Public GitHub Documentation Agent — basic evaluation",
+  "description": "Exercises the DeepWiki-only retrieval, off-topic refusal, and repo-identifier-citation rules from the system prompt.",
+  "eval_cases": [
+    {
+      "eval_id": "repo_routing_envoy",
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [{"text": "How does request routing work in envoyproxy/envoy?"}]
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "app",
+        "user_id": "eval_user",
+        "state": {}
+      }
+    },
+    {
+      "eval_id": "repo_overview_kubernetes",
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [{"text": "Give me a high-level overview of kubernetes/kubernetes."}]
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "app",
+        "user_id": "eval_user",
+        "state": {}
+      }
+    },
+    {
+      "eval_id": "cross_repo_comparison",
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [{"text": "Compare how kubernetes/kubernetes and hashicorp/nomad approach scheduling."}]
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "app",
+        "user_id": "eval_user",
+        "state": {}
+      }
+    },
+    {
+      "eval_id": "off_topic_capital",
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [{"text": "What is the capital of France?"}]
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "app",
+        "user_id": "eval_user",
+        "state": {}
+      }
+    },
+    {
+      "eval_id": "private_repo_refusal",
+      "conversation": [
+        {
+          "user_content": {
+            "parts": [{"text": "Tell me about the source code of git@github.com:my-org/my-private-repo.git."}]
+          }
+        }
+      ],
+      "session_input": {
+        "app_name": "app",
+        "user_id": "eval_user",
+        "state": {}
+      }
+    }
+  ]
+}
