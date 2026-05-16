@@ -1,4 +1,4 @@
-CLUSTER_NAME ?= abox-lab3
+CLUSTER_NAME ?= abox-lab4
 TAG_PREFIX   ?= lab3-v
 
 help:

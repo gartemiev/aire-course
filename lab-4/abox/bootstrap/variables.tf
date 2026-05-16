@@ -1,7 +1,7 @@
 variable "cluster_name" {
   description = "Cluster Name"
   type        = string
-  default     = "abox-lab3"
+  default     = "abox-lab4"
 }
 
 variable "oci_registry" {
