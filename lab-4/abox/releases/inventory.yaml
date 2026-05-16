@@ -56,9 +56,15 @@ spec:
   values:
     image:
       # Pin the controller image tag explicitly — never trust upstream "latest".
-      # appVersion in Chart.yaml is 0.5.16, kept in lock-step with chartVersion.
+      # The chart (0.5.16) and image versioning are decoupled: chart Chart.yaml
+      # `appVersion: 0.5.16` does NOT correspond to any pushed image tag.
+      # Upstream's CI (`make push` → `ko build --tags=$VERSION,latest`) only
+      # produces clean-semver image tags on release-tag builds; the last such
+      # tag in GHCR is `0.5.4`. Everything newer is `vX.Y.Z-<sha>-<timestamp>`.
+      # Pin to 0.5.4 (chart's image-shape contract holds — only the tag default
+      # is stale).
       repository: ghcr.io/den-vasyliev/agentregistry-inventory
-      tag: "0.5.16"
+      tag: "0.5.4"
       pullPolicy: IfNotPresent
     httpApi:
       port: 8080
