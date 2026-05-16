@@ -1,0 +1,68 @@
+# BYO (bring-your-own) kagent Agent — the Public GitHub Documentation Agent.
+# Container is the ADK adk_a2a-scaffolded agent in lab-4/agent/, exposed via
+# `app/fast_api_app.py` (uvicorn). kagent creates a Deployment+Service from
+# spec.byo.deployment and re-exposes the agent through the controller at:
+#   :8083/api/a2a/kagent/public-github-docs-agent/.well-known/agent-card.json
+#
+# Image is built and pushed by .github/workflows/a2a-agent-image-lab4.yaml on
+# changes under lab-4/agent/**, tagged from `lab-4-a2a-agent-<semver>` git tags
+# (e.g. lab-4-a2a-agent-0.1.0 → image tag 0.1.0). Lab-scoped GHCR path so
+# future labs publish under lab-N/<name> without collision.
+#
+# Wiring:
+#   - LLM goes to agentgateway /v1, which injects the real OpenAI key from
+#     aire-openai-token (see openai-credentials.yaml + agentgateway-llm.yaml).
+#     OPENAI_API_KEY is a placeholder; the gateway rewrites Authorization.
+#   - DeepWiki MCP also goes through agentgateway: /mcp routes to
+#     mcp.deepwiki.com:443 (see agentgateway-mcp.yaml). The pod talks plain
+#     HTTP to the in-cluster gateway; the gateway terminates TLS upstream.
+#   - System prompt + DeepWiki-only rule live in app/agent.py.
+#
+# kagent re-exposes the AgentCard, so the agent's own A2A_BASE_URL stays at
+# its in-pod default; the AgentCard kagent serves uses the controller URL.
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: public-github-docs-agent
+  namespace: kagent
+spec:
+  type: BYO
+  description: "Answers natural-language questions about public GitHub repositories using the DeepWiki MCP server."
+  byo:
+    deployment:
+      image: ghcr.io/gartemiev/aire-course/lab-4/a2a-agent:0.1.0
+      imagePullPolicy: IfNotPresent
+      env:
+        - name: MODEL_PROVIDER
+          value: openai
+        - name: OPENAI_MODEL
+          value: openai/gpt-4.1-mini
+        - name: OPENAI_API_BASE
+          value: http://agentgateway-external.agentgateway-system.svc.cluster.local/v1
+        - name: OPENAI_API_KEY
+          value: placeholder-gateway-injects-real-key
+        # Route MCP through agentgateway instead of egressing directly. The
+        # gateway's `mcp` AgentgatewayBackend forwards /mcp → mcp.deepwiki.com:443
+        # over TLS (see agentgateway-mcp.yaml). The agent's MCPToolset reads
+        # this env at startup; flipping it back to https://mcp.deepwiki.com/mcp
+        # bypasses the gateway and is useful for local debugging.
+        - name: DEEPWIKI_MCP_URL
+          value: http://agentgateway-external.agentgateway-system.svc.cluster.local/mcp
+        # NB: PORT is *not* read by the lab-4 agent code. The container binds
+        # 8080 from the Dockerfile CMD (`uvicorn --port 8080`); declaring PORT
+        # here would be cargo-culted from lab-3 and silently dead. Drop it
+        # entirely so the env block reflects what actually wires.
+        # Optional: extra HTTP headers added to every LLM / MCP request when
+        # agentgateway routes on headers (tenancy, backend tier, etc.) rather
+        # than path alone. JSON dict; omit entirely when not needed.
+        # - name: OPENAI_EXTRA_HEADERS
+        #   value: '{"X-Route-Tier":"premium"}'
+        # - name: MCP_EXTRA_HEADERS
+        #   value: '{"X-Tenant":"acme"}'
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 1
+          memory: 512Mi

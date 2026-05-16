@@ -5,5 +5,8 @@ resources:
   - agentgateway.yaml
   - agentgateway-ui.yaml
   - agentgateway-llm.yaml
+  - agentgateway-mcp.yaml
   - openai-credentials.yaml
   - kagent.yaml
+  - a2a-agent.yaml
+  - inventory.yaml
