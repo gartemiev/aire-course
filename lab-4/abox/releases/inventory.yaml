@@ -55,16 +55,14 @@ spec:
     createNamespace: false   # Namespace is declared above; HelmRelease must not race it.
   values:
     image:
-      # Pin the controller image tag explicitly — never trust upstream "latest".
-      # The chart (0.5.16) and image versioning are decoupled: chart Chart.yaml
-      # `appVersion: 0.5.16` does NOT correspond to any pushed image tag.
-      # Upstream's CI (`make push` → `ko build --tags=$VERSION,latest`) only
-      # produces clean-semver image tags on release-tag builds; the last such
-      # tag in GHCR is `0.5.4`. Everything newer is `vX.Y.Z-<sha>-<timestamp>`.
-      # Pin to 0.5.4 (chart's image-shape contract holds — only the tag default
-      # is stale).
+      # Image and chart versioning are decoupled. Chart 0.5.16 ships with
+      # appVersion "latest" in its Chart.yaml, but the actual image tag that
+      # corresponds to the v0.5.18 git tag is "0.5.18" (no v-prefix).
+      # 0.5.4 had a bug where the local-cluster client failed a client.WithWatch
+      # type assertion, breaking all auto-discovery (all /v0/* returned empty).
+      # 0.5.18 contains the fix.
       repository: ghcr.io/den-vasyliev/agentregistry-inventory
-      tag: "0.5.4"
+      tag: "0.5.18"
       pullPolicy: IfNotPresent
     httpApi:
       port: 8080
