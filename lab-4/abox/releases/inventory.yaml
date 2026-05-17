@@ -107,12 +107,8 @@ spec:
     - path:
         type: PathPrefix
         value: /inventory
-    # Service-side paths are rooted at `/` (e.g. /v0/agents). Strip the
-    # gateway-side prefix so `/inventory/v0/agents` reaches the controller as
-    # `/v0/agents`. If the embedded UI's absolute paths (`/ui/...`) end up
-    # broken under this rewrite, drop the filter and serve the UI on a
-    # dedicated hostname instead — JSON API verification (Phase 8) only
-    # depends on /v0/* which works either way.
+    # Strip /inventory prefix so the controller receives paths rooted at /.
+    # This covers both the JSON API (/v0/*) and the embedded UI (/ui/*).
     filters:
     - type: URLRewrite
       urlRewrite:
@@ -120,10 +116,15 @@ spec:
           type: ReplacePrefixMatch
           replacePrefixMatch: /
     backendRefs:
-    # Service name derives from Helm fullname template:
-    #   {releaseName}-{chartName} → inventory-agentregistry
-    # The chart's service.yaml suffixes "-api" for the HTTP/MCP service.
-    # Port 8080 only — :8081 (metrics), :8082 (probes), :8083 (MCP) stay
-    # cluster-internal per spec.
+    - name: inventory-agentregistry-api
+      port: 8080
+  # The UI's Next.js runtime injects absolute asset paths (/_next/static/...)
+  # into the HTML. Those requests arrive at the gateway without the /inventory
+  # prefix and would 404 without this second rule.
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /_next
+    backendRefs:
     - name: inventory-agentregistry-api
       port: 8080
