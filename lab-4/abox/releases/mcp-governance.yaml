@@ -16,10 +16,215 @@
 # this lab routes external traffic through agentgateway, not NodePorts.
 # No HTTPRoute — dashboard is reachable via port-forward
 # (`kubectl -n mcp-governance port-forward svc/mcp-governance-dashboard 3000`).
+#
+# CRD ownership: chart v0.22.2 ships a malformed mcpgovernancepolicies CRD
+# (charts/mcp-governance/crds/mcpgovernancepolicies.yaml). Under
+# spec.properties.spec it has TWO `type/properties` blocks at the same
+# indent — YAML parsing keeps only the second one (the status fields),
+# silently discarding every policy field (requireRBAC, scoringWeights, …).
+# Result: samples.install renders a policy CR whose fields the broken CRD
+# rejects with `field not declared in schema`. We fix it by vendoring our
+# own corrected CRD below (policy fields under spec, status fields under
+# status) and telling the HelmRelease to skip its own CRDs. The chart's
+# GovernanceEvaluation CRD is fine and we let Helm own it via the
+# .governanceevaluations CRD it bundles... but since we set
+# install.crds=Skip globally we also vendor that one unchanged.
 apiVersion: v1
 kind: Namespace
 metadata:
   name: mcp-governance
+---
+# Vendored from charts/mcp-governance/crds/mcpgovernancepolicies.yaml @ v0.22.2
+# with the duplicate `type/properties` block under spec.properties.spec
+# removed: every policy field stays under .spec; the four status fields
+# (phase, clusterScore, lastEvaluationTime, conditions) move under .status
+# where additionalPrinterColumns / subresources.status already point.
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: mcpgovernancepolicies.governance.mcp.io
+spec:
+  group: governance.mcp.io
+  scope: Cluster
+  names:
+    plural: mcpgovernancepolicies
+    singular: mcpgovernancepolicy
+    kind: MCPGovernancePolicy
+    shortNames:
+      - mgp
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Score
+          type: integer
+          jsonPath: .status.clusterScore
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+        - name: Last Evaluated
+          type: string
+          jsonPath: .status.lastEvaluationTime
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                requireAgentGateway: { type: boolean, default: true }
+                requireCORS: { type: boolean, default: true }
+                requireJWTAuth: { type: boolean, default: true }
+                requireRBAC: { type: boolean, default: true }
+                requirePromptGuard: { type: boolean, default: false }
+                requireTLS: { type: boolean, default: true }
+                requireRateLimit: { type: boolean, default: false }
+                requireHardenedDeployment: { type: boolean, default: true }
+                scanInterval: { type: string, default: "5m" }
+                enableAuditLogging: { type: boolean, default: false }
+                clusterName: { type: string }
+                maxToolsWarning: { type: integer, default: 10 }
+                maxToolsCritical: { type: integer, default: 15 }
+                scoringWeights:
+                  type: object
+                  properties:
+                    agentGatewayIntegration: { type: integer, default: 25 }
+                    authentication: { type: integer, default: 20 }
+                    authorization: { type: integer, default: 15 }
+                    corsPolicy: { type: integer, default: 10 }
+                    tlsEncryption: { type: integer, default: 10 }
+                    promptGuard: { type: integer, default: 10 }
+                    rateLimit: { type: integer, default: 5 }
+                    toolScope: { type: integer, default: 5 }
+                    hardenedDeployment: { type: integer, default: 15 }
+                severityPenalties:
+                  type: object
+                  properties:
+                    critical: { type: integer, default: 40 }
+                    high: { type: integer, default: 25 }
+                    medium: { type: integer, default: 15 }
+                    low: { type: integer, default: 5 }
+                targetNamespaces:
+                  type: array
+                  items: { type: string }
+                excludeNamespaces:
+                  type: array
+                  items: { type: string }
+                aiAgent:
+                  type: object
+                  properties:
+                    enabled: { type: boolean, default: false }
+                    provider:
+                      type: string
+                      default: "gemini"
+                      enum: [gemini, ollama]
+                    model: { type: string, default: "gemini-2.5-flash" }
+                    ollamaEndpoint: { type: string, default: "http://localhost:11434" }
+                    scanInterval: { type: string, default: "5m" }
+                    scanEnabled: { type: boolean, default: true }
+                verifiedCatalogScoring:
+                  type: object
+                  properties:
+                    securityWeight: { type: integer, default: 50 }
+                    trustWeight: { type: integer, default: 30 }
+                    complianceWeight: { type: integer, default: 20 }
+                    verifiedThreshold: { type: integer, default: 70 }
+                    unverifiedThreshold: { type: integer, default: 50 }
+                    checkMaxScores:
+                      type: object
+                      additionalProperties: { type: integer }
+                skillGovernance:
+                  type: object
+                  properties:
+                    enabled: { type: boolean, default: true }
+                    scanRepoContent: { type: boolean, default: false }
+                    githubToken: { type: string }
+                    scanCacheTTLMinutes: { type: integer, default: 60 }
+                    failOnPromptInjection: { type: boolean, default: true }
+                    failOnPrivilegeEscalation: { type: boolean, default: true }
+                    allowedExternalDomains:
+                      type: array
+                      items: { type: string }
+                    requireSafetyGuardrails:
+                      type: array
+                      items: { type: string }
+            status:
+              type: object
+              properties:
+                phase: { type: string }
+                clusterScore: { type: integer }
+                lastEvaluationTime: { type: string, format: date-time }
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type: { type: string }
+                      status: { type: string }
+                      reason: { type: string }
+                      message: { type: string }
+                      lastTransitionTime: { type: string, format: date-time }
+---
+# Vendored unchanged from charts/mcp-governance/crds/governanceevaluations.yaml
+# @ v0.22.2. We don't strictly need to vendor this — the upstream CRD is
+# well-formed — but install.crds=Skip on the HelmRelease means Helm won't
+# install ANY chart CRDs, so we have to own this one too.
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: governanceevaluations.governance.mcp.io
+spec:
+  group: governance.mcp.io
+  scope: Cluster
+  names:
+    plural: governanceevaluations
+    singular: governanceevaluation
+    kind: GovernanceEvaluation
+    shortNames:
+      - geval
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Score
+          type: integer
+          jsonPath: .status.score
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                policyRef: { type: string }
+                evaluationScope:
+                  type: string
+                  enum: [cluster, namespace, resource]
+                targetRef:
+                  type: object
+                  properties:
+                    apiGroup: { type: string }
+                    kind: { type: string }
+                    name: { type: string }
+                    namespace: { type: string }
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
 ---
 # OCI chart layer is a standard helm-published tarball, so OCIRepository works
 # (cf. external-secrets which needed HelmRepository type:oci for non-standard
@@ -49,9 +254,12 @@ spec:
     namespace: flux-system
   install:
     createNamespace: false   # Namespace is declared above; HelmRelease must not race it.
-    crds: CreateReplace      # Chart ships MCPGovernancePolicy/GovernanceEvaluation CRDs.
+    # Skip chart-bundled CRDs — the mcpgovernancepolicies one is malformed
+    # (see header comment). We own corrected CRDs above; Flux applies them
+    # before the HelmRelease reconciles.
+    crds: Skip
   upgrade:
-    crds: CreateReplace
+    crds: Skip
   values:
     controller:
       image:
@@ -68,7 +276,31 @@ spec:
         pullPolicy: IfNotPresent
       service:
         type: ClusterIP
-    # samples.install ships example MCPGovernancePolicy CRs — useful in the
-    # lab so the dashboard isn't empty on first paint.
+    # Sample MCPGovernancePolicy (enterprise-mcp-policy) + GovernanceEvaluation
+    # (enterprise-evaluation). Safe to enable because we vendor a corrected
+    # mcpgovernancepolicies CRD above; the chart's broken one is bypassed
+    # via install.crds=Skip.
     samples:
       install: true
+    # Tune the policy defaults to the lab's reality:
+    # - excludeNamespaces: don't scan Flux/ESO/cert-manager system pods,
+    #   they're plumbing not MCP infra (audit recommendation 2026-05-17).
+    governancePolicy:
+      name: enterprise-mcp-policy
+      spec:
+        requireAgentGateway: true
+        requireJWTAuth: true
+        requireRBAC: true
+        requireCORS: true
+        requireTLS: true
+        requirePromptGuard: true
+        requireRateLimit: true
+        requireHardenedDeployment: true
+        scanInterval: "5m"
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - local-path-storage
+          - flux-system
+          - external-secrets
