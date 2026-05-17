@@ -128,3 +128,20 @@ spec:
     backendRefs:
     - name: inventory-agentregistry-api
       port: 8080
+  # The embedded Next.js UI calls the JSON API at absolute /v0/* paths (no
+  # /inventory prefix). No URLRewrite needed — the path reaches the pod as-is.
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /v0
+    backendRefs:
+    - name: inventory-agentregistry-api
+      port: 8080
+  # Schema files referenced in API responses ($schema field).
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /schemas
+    backendRefs:
+    - name: inventory-agentregistry-api
+      port: 8080
