@@ -10,3 +10,5 @@ resources:
   - kagent.yaml
   - a2a-agent.yaml
   - inventory.yaml
+  - qdrant.yaml
+  - mcp-governance.yaml
