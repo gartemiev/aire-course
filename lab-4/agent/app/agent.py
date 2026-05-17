@@ -1,4 +1,3 @@
-# ruff: noqa
 # Copyright 2026 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -40,11 +39,6 @@ from google.adk.tools.mcp_tool.mcp_session_manager import (
 # Public DeepWiki MCP server (streamable HTTP). Override only for tests
 # that need to point at a fake.
 DEEPWIKI_MCP_URL = os.getenv("DEEPWIKI_MCP_URL", "https://mcp.deepwiki.com/mcp")
-if not DEEPWIKI_MCP_URL:
-    raise ValueError(
-        "DEEPWIKI_MCP_URL must be a non-empty URL; got empty string. "
-        "Unset the env var to fall back to https://mcp.deepwiki.com/mcp."
-    )
 
 # Routes LLM calls. "openai" → LiteLlm against an OpenAI-compatible /v1
 # (locally api.openai.com, in cluster agentgateway). No "gemini" branch:

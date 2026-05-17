@@ -30,7 +30,7 @@ spec:
   description: "Answers natural-language questions about public GitHub repositories using the DeepWiki MCP server."
   byo:
     deployment:
-      image: ghcr.io/gartemiev/aire-course/lab-4/a2a-agent:0.1.1
+      image: ghcr.io/gartemiev/aire-course/lab-4/a2a-agent:0.1.2
       imagePullPolicy: IfNotPresent
       env:
         - name: MODEL_PROVIDER

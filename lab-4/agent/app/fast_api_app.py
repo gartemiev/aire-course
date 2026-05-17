@@ -38,13 +38,11 @@ from a2a.utils.constants import (
 )
 from fastapi import FastAPI
 from google.adk.a2a.executor.a2a_agent_executor import A2aAgentExecutor
-from google.adk.artifacts import GcsArtifactService, InMemoryArtifactService
+from google.adk.artifacts import InMemoryArtifactService
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 
 from app.agent import app as adk_app
-from app.app_utils.telemetry import setup_telemetry
-from app.app_utils.typing import Feedback
 
 # Externally-reachable base URL — drives ONLY the AgentCard.url field (what
 # clients see). Routes are always mounted at the root of this app; any
@@ -57,17 +55,9 @@ A2A_BASE_URL = os.getenv("A2A_BASE_URL", "http://localhost:8080").rstrip("/")
 
 AGENT_VERSION = os.getenv("AGENT_VERSION", "0.1.0")
 
-# Artifact bucket for ADK (created by Terraform, passed via env var)
-logs_bucket_name = os.environ.get("LOGS_BUCKET_NAME")
-artifact_service = (
-    GcsArtifactService(bucket_name=logs_bucket_name)
-    if logs_bucket_name
-    else InMemoryArtifactService()
-)
-
 runner = Runner(
     app=adk_app,
-    artifact_service=artifact_service,
+    artifact_service=InMemoryArtifactService(),
     session_service=InMemorySessionService(),
 )
 
@@ -108,24 +98,6 @@ def build_agent_card() -> AgentCard:
     )
 
 
-def _get_feedback_logger():
-    """Lazy-init the Cloud Logging client.
-
-    Deferred so module import stays side-effect-free for unit tests that
-    have no ADC and no network. The first /feedback request pays the
-    one-time setup cost.
-    """
-    import google.auth
-    from google.cloud import logging as google_cloud_logging
-
-    setup_telemetry()
-    google.auth.default()
-    return google_cloud_logging.Client().logger(__name__)
-
-
-_feedback_logger = None
-
-
 @asynccontextmanager
 async def lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
     agent_card = build_agent_card()
@@ -146,23 +118,6 @@ app = FastAPI(
     description="A2A agent that answers questions about public GitHub repositories via DeepWiki MCP.",
     lifespan=lifespan,
 )
-
-
-@app.post("/feedback")
-def collect_feedback(feedback: Feedback) -> dict[str, str]:
-    """Collect and log feedback.
-
-    Args:
-        feedback: The feedback data to log
-
-    Returns:
-        Success message
-    """
-    global _feedback_logger
-    if _feedback_logger is None:
-        _feedback_logger = _get_feedback_logger()
-    _feedback_logger.log_struct(feedback.model_dump(), severity="INFO")
-    return {"status": "success"}
 
 
 # Main execution
