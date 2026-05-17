@@ -1,0 +1,74 @@
+# MCP Security Governance — Kubernetes-native security posture scoring for
+# MCP servers. Two components:
+#   - Controller (Go REST API, :8090) — discovers MCPServer CRs, scores them
+#     across the nine governance categories, writes status back.
+#   - Dashboard (Next.js, :3000) — UI that reads the controller API.
+#
+# Upstream chart: oci://ghcr.io/techwithhuz/charts/mcp-governance
+# Source:        https://github.com/techwithhuz/mcp-security-governance
+#
+# Chart values.yaml ships `localhost/...` image refs with `pullPolicy: Never`
+# (intended for `kind load`). We override to the ghcr.io images published in
+# the v0.22.2 GitHub release and flip pullPolicy to IfNotPresent so the
+# kubelet can actually fetch them.
+#
+# Dashboard default service type is NodePort 30000; we force ClusterIP since
+# this lab routes external traffic through agentgateway, not NodePorts.
+# No HTTPRoute — dashboard is reachable via port-forward
+# (`kubectl -n mcp-governance port-forward svc/mcp-governance-dashboard 3000`).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mcp-governance
+---
+# OCI chart layer is a standard helm-published tarball, so OCIRepository works
+# (cf. external-secrets which needed HelmRepository type:oci for non-standard
+# media types).
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: mcp-governance
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: oci://ghcr.io/techwithhuz/charts/mcp-governance
+  ref:
+    tag: "0.22.2"
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: mcp-governance
+  namespace: mcp-governance
+spec:
+  interval: 1h
+  releaseName: mcp-governance
+  chartRef:
+    kind: OCIRepository
+    name: mcp-governance
+    namespace: flux-system
+  install:
+    createNamespace: false   # Namespace is declared above; HelmRelease must not race it.
+    crds: CreateReplace      # Chart ships MCPGovernancePolicy/GovernanceEvaluation CRDs.
+  upgrade:
+    crds: CreateReplace
+  values:
+    controller:
+      image:
+        repository: ghcr.io/techwithhuz/mcp-governance-controller
+        tag: "0.22.2"
+        pullPolicy: IfNotPresent
+      service:
+        type: ClusterIP
+    dashboard:
+      enabled: true
+      image:
+        repository: ghcr.io/techwithhuz/mcp-governance-dashboard
+        tag: "0.22.2"
+        pullPolicy: IfNotPresent
+      service:
+        type: ClusterIP
+    # samples.install ships example MCPGovernancePolicy CRs — useful in the
+    # lab so the dashboard isn't empty on first paint.
+    samples:
+      install: true
