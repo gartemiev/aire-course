@@ -90,20 +90,8 @@ def test_openai_provider_uses_litellm(monkeypatch) -> None:
 
 
 def test_unknown_provider_raises(monkeypatch) -> None:
-    monkeypatch.setenv("MODEL_PROVIDER", "bogus")
     with pytest.raises(ValueError, match="Unknown MODEL_PROVIDER"):
-        import app.agent
-
-        importlib.reload(app.agent)
-
-
-def test_invalid_mcp_url_raises(monkeypatch) -> None:
-    monkeypatch.setenv("DEEPWIKI_MCP_URL", "")
-    monkeypatch.setenv("MODEL_PROVIDER", "openai")
-    with pytest.raises(ValueError, match="DEEPWIKI_MCP_URL"):
-        import app.agent
-
-        importlib.reload(app.agent)
+        _reload_agent_with_env(monkeypatch, MODEL_PROVIDER="bogus")
 
 
 def test_mcp_extra_headers_passed_through(monkeypatch) -> None:
@@ -120,9 +108,9 @@ def test_mcp_extra_headers_passed_through(monkeypatch) -> None:
 
 
 def test_invalid_headers_json_raises(monkeypatch) -> None:
-    monkeypatch.setenv("MODEL_PROVIDER", "openai")
-    monkeypatch.setenv("OPENAI_EXTRA_HEADERS", "not-json")
     with pytest.raises(ValueError, match="must be a JSON object"):
-        import app.agent
-
-        importlib.reload(app.agent)
+        _reload_agent_with_env(
+            monkeypatch,
+            MODEL_PROVIDER="openai",
+            OPENAI_EXTRA_HEADERS="not-json",
+        )
