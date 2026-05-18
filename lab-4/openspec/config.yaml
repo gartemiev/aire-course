@@ -1,0 +1,58 @@
+schema: spec-driven
+
+context: |
+  Repo: aire-course/lab-4 — Lab 4 of the AIRE course (A2A + agent registry track).
+
+  Infrastructure baseline lives in lab-4/abox/ and is "abox":
+  - Local KinD cluster (1 control-plane + 2 workers) provisioned with OpenTofu.
+  - Gitless GitOps: Flux Operator + FluxInstance reconcile from an OCI artifact
+    published from lab-4/abox/releases/ on every `v*` tag (`make push`).
+  - Two Flux Kustomizations: `releases-crds` (path ./crds, wait=true) and
+    `releases` (path ./, dependsOn: releases-crds).
+  - agentgateway v2.2.1 (Gateway API controller) in `agentgateway-system` with
+    Gateway `agentgateway-external` on port 80, `allowedRoutes.namespaces.from: All`.
+  - kagent 0.9.3 (post-rendered to strip `+build` from labels) in `kagent` namespace.
+  - cloud-provider-kind gives the gateway a real LoadBalancer IP.
+  - kmcp-crds installed in releases/crds/ — kagent subchart needs it.
+
+  Conventions (from abox/CODEBASE.md — non-negotiable):
+  - CRDs go in `releases/crds/` as HelmReleases (`install.crds: CreateReplace`).
+    Apps go in `releases/` with `dependsOn` pointing to their CRD release.
+  - All HelmReleases use explicit `ref.tag` — never `latest`.
+  - Define the Namespace resource in the same file as the HelmRelease.
+  - HTTPRoute referencing a Gateway in another namespace MUST be paired with a
+    ReferenceGrant in the app's namespace.
+  - RSIP tag sort is lexicographic — never let patch exceed 9 (`0.3.10 < 0.3.9`).
+  - `gavinbunney/kubectl` provider is used for RSIP/ResourceSet manifests (skips
+    CRD schema validation at plan time).
+
+  Lab task (lab-4/README.md):
+  - Build a custom agent in any framework with an Agent Card discoverable via a
+    Well-Known URI (A2A spec: a2a-protocol.org).
+  - Deploy github.com/den-vasyliev/agentregistry-inventory ("Inventory") and
+    retrieve the list of AI resources from the cluster.
+
+  Decisions already made for this change set:
+  - Agent framework: Google ADK via `agents-cli scaffold create --agent adk_a2a`
+    (https://google.github.io/agents-cli). A2A wiring (AgentCard, well-known URI,
+    JSON-RPC tasks) ships in the template — do NOT hand-write A2A code.
+  - Agent deployment: in-cluster as a Flux HelmRelease in `releases/`, exposed
+    through agentgateway via HTTPRoute.
+  - Inventory deployment: in-cluster as a Flux HelmRelease pointing at the
+    upstream Helm chart, exposed through agentgateway via HTTPRoute.
+  - Out of scope here: A2A task communication between agents (Experienced) and
+    the multi-agent team (Max) — covered by future changes.
+
+rules:
+  proposal:
+    - Reference abox conventions directly when proposing new releases — never restate them as new requirements.
+    - Keep the scope to the Beginner level of lab-4/README.md.
+  design:
+    - Call out where the Well-Known URI for the Agent Card is served (path, port, host) and how it is reachable through agentgateway.
+    - Spell out the Flux ordering (CRD release name, dependsOn, ReferenceGrant) for every new HelmRelease introduced.
+  specs:
+    - Scenarios MUST be observable from outside the cluster (curl through the gateway IP, kubectl outputs) — no internal-only assertions.
+    - Use SHALL/MUST language, never should/may.
+  tasks:
+    - Group tasks by lifecycle phase — scaffold, image build, Flux manifests, release/push, verification.
+    - Each task must be verifiable with a concrete shell command or kubectl/curl check.
