@@ -14,7 +14,7 @@
 - [x] 2.3 Move any CRD definitions found in those two files into `lab-5/abox/releases/crds/agent-sandbox-crds.yaml`, leaving only Namespaces, RBAC, Services, and Deployments in `agent-sandbox.yaml`. Record the upstream release tag in a header comment in the CRDs file.
 - [x] 2.4 Append `agent-sandbox-crds.yaml` to `lab-5/abox/releases/crds/kustomization.yaml` under `resources:` (after `kmcp-crds.yaml`).
 - [x] 2.5 Append `agent-sandbox.yaml` to `lab-5/abox/releases/kustomization.yaml` under `resources:` (after `kagent.yaml`).
-- [x] 2.6 Write `lab-5/abox/releases/sandbox-template.yaml` defining a `SandboxTemplate` named `python-sandbox-template` whose pod spec runs `python:3.12-slim`, has an init step that runs `pip install "k8s-agent-sandbox[tracing]" opentelemetry-distro && opentelemetry-bootstrap -a install`, and sets resource requests/limits per `design.md` §D6. Append the file to `releases/kustomization.yaml`.
+- [x] 2.6 Write `lab-5/abox/releases/sandbox-template.yaml` defining a `SandboxTemplate` named `python-sandbox-template` whose pod spec runs `python:3.12-slim`, has an init step that runs `pip install "k8s-agent-sandbox[tracing]" opentelemetry-distro && opentelemetry-bootstrap -a install`, and sets resource requests/limits per `design.md` §D6. Append the file to `releases/kustomization.yaml`. _Correction during impl: the pip install belongs in the operator's local venv (per upstream prereqs), not the pod. The pod must run the upstream `python-runtime-sandbox` image so the SDK's `commands.run(...)` reaches a real `/execute` HTTP handler on port 8888. design.md §D6 and the agent-sandbox-platform spec scenario were updated accordingly._
 
 ## 3. Deploy Phoenix and the OpenTelemetry Collector via Flux
 

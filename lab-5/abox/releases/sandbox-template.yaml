@@ -1,16 +1,22 @@
 # Baseline SandboxTemplate referenced by the Agent Sandbox metrics
 # walkthrough (https://agent-sandbox.sigs.k8s.io/docs/sandbox/metrics/).
 #
-# The walkthrough creates a SandboxClaim against `python-sandbox-template` in
-# the `default` namespace, opens a tunnel, and runs
-# `opentelemetry-instrument python main.py` from a local venv. The template's
-# job is to be ready when the claim lands — i.e. a Python pod with the
-# Sandbox SDK tracing extras and the opentelemetry instrumentation packages
-# already installed so the operator can exec in and run code immediately
-# without a long `pip install` round-trip.
+# The walkthrough's `commands.run(payload)` call expects the sandbox pod to
+# serve an HTTP `/execute` endpoint on port 8888 — the upstream "sandbox
+# agent" runtime that pairs with the Python SDK. Upstream ships that
+# runtime as the `python-runtime-sandbox` image at
+# us-central1-docker.pkg.dev/k8s-staging-images/agent-sandbox/python-runtime-sandbox,
+# used verbatim in examples/hpa-swp-scaling/python-sandbox-template.yaml.
 #
-# Resources match design.md §D6 (200m CPU / 256Mi RAM): cheap to keep
-# around for the duration of the lab, fits comfortably in a 3-node KinD.
+# Image pin: `v20260519-v0.4.6-11-g6fbb999-main` — most recent dated build
+# off the `v0.4.6` branch (same line as our controller). The walkthrough's
+# Python SDK prerequisites (`pip install "k8s-agent-sandbox[tracing]"
+# opentelemetry-distro && opentelemetry-bootstrap -a install`) are run in
+# the operator's LOCAL venv (per upstream docs); they don't belong in the
+# pod itself.
+#
+# Resources match design.md §D6 (200m / 256Mi limits): cheap to keep
+# around for a 3-node KinD; bump for heavier code-interpreter scenarios.
 apiVersion: extensions.agents.x-k8s.io/v1alpha1
 kind: SandboxTemplate
 metadata:
@@ -20,24 +26,30 @@ spec:
   podTemplate:
     spec:
       containers:
-        - name: sandbox
-          image: python:3.12-slim
+        - name: python-runtime
+          image: us-central1-docker.pkg.dev/k8s-staging-images/agent-sandbox/python-runtime-sandbox:v20260519-v0.4.6-11-g6fbb999-main
           imagePullPolicy: IfNotPresent
-          # Install the Sandbox SDK tracing extras + OTel distro on first
-          # boot, then sleep so the pod stays Ready for `kubectl exec` /
-          # tunnel access. `opentelemetry-bootstrap -a install` adds the
-          # auto-instrumentation wheels documented in the metrics walkthrough.
-          command: ["/bin/sh", "-c"]
-          args:
-            - |
-              set -eu
-              pip install --no-cache-dir "k8s-agent-sandbox[tracing]" opentelemetry-distro
-              opentelemetry-bootstrap -a install
-              exec sleep infinity
+          ports:
+            - containerPort: 8888
+          readinessProbe:
+            httpGet:
+              path: "/"
+              port: 8888
+            initialDelaySeconds: 0
+            periodSeconds: 1
+          livenessProbe:
+            httpGet:
+              path: "/"
+              port: 8888
+            initialDelaySeconds: 2
+            periodSeconds: 10
           resources:
             requests:
               cpu: 100m
               memory: 128Mi
+              ephemeral-storage: 256Mi
             limits:
               cpu: 200m
               memory: 256Mi
+              ephemeral-storage: 512Mi
+      restartPolicy: OnFailure

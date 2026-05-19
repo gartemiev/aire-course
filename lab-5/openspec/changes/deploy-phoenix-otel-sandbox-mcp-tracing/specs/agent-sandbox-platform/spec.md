@@ -67,8 +67,10 @@ without authoring their own template.
 - **WHEN** `kubectl get sandboxtemplate python-sandbox-template -o yaml` is
   run
 - **THEN** the resource SHALL exist
-- **AND** its `spec.podTemplate.spec.containers[0].image` SHALL be a public
-  Python image (e.g. `python:3.12-slim`) with `imagePullPolicy: IfNotPresent`
+- **AND** its `spec.podTemplate.spec.containers[0].image` SHALL be the
+  upstream `python-runtime-sandbox` image (which bakes in the HTTP
+  `/execute` agent the SDK talks to on port 8888) pinned to a concrete
+  dated tag, with `imagePullPolicy: IfNotPresent`
 
 #### Scenario: A SandboxClaim from the template becomes Ready
 

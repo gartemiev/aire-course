@@ -303,10 +303,13 @@ The upstream docs assume a `SandboxTemplate` named `python-sandbox-template`
 (or the simpler `simple-sandbox-template`) is already applied. We ship
 `releases/sandbox-template.yaml` defining `python-sandbox-template`:
 
-- Base image: `python:3.12-slim` plus a tiny init script that
-  `pip install "k8s-agent-sandbox[tracing]" opentelemetry-distro` and runs
-  `opentelemetry-bootstrap -a install`. This matches the prerequisites
-  section of the metrics doc verbatim.
+- Base image: `us-central1-docker.pkg.dev/k8s-staging-images/agent-sandbox/python-runtime-sandbox`,
+  pinned to a dated `-main` tag. This is the upstream "sandbox agent"
+  runtime that serves HTTP `/execute` on port 8888 — what the Python
+  SDK's `commands.run(...)` actually talks to via the router. (Earlier
+  drafts used `python:3.12-slim` + a `pip install …` init step, but that
+  was a misread of the upstream prereqs: the pip install is for the
+  operator's **local** venv, not the pod.)
 - Resource limits: 200m CPU / 256Mi RAM so a sandbox is cheap to keep
   around.
 - No persistent storage initially - the walkthrough only echoes
