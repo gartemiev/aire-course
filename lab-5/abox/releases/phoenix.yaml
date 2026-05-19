@@ -103,6 +103,18 @@ spec:
         - path:
             type: PathPrefix
             value: /phoenix
+      # PHOENIX_HOST_ROOT_PATH follows the FastAPI/Starlette `root_path`
+      # convention: Phoenix emits URLs prefixed with /phoenix but its own
+      # routes are still registered at /. The proxy must strip the prefix
+      # before forwarding, otherwise GET /phoenix/assets/*.js hits the SPA
+      # catch-all (returns index.html) instead of the static-file handler
+      # — manifests as a blank white page in the browser.
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         # Chart renders the Service as `<release>-svc`, hardcoded in the
         # `phoenix.service` template helper. Keep this name in sync if you
