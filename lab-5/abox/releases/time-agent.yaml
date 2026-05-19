@@ -53,8 +53,13 @@ spec:
           value: http://agentgateway-external.agentgateway-system.svc.cluster.local/mcp
         - name: PORT
           value: "8080"
+        # Full path required: phoenix.otel.register(endpoint=...) passes
+        # the value straight to the OTLP exporter constructor, which (unlike
+        # the OTEL_EXPORTER_OTLP_ENDPOINT env-var auto-discovery path) does
+        # NOT append /v1/traces. Without the suffix every export POSTs to
+        # the collector root and gets a 404 — no spans reach Phoenix.
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
-          value: http://otel-collector.observability.svc.cluster.local:4318
+          value: http://otel-collector.observability.svc.cluster.local:4318/v1/traces
         - name: OTEL_EXPORTER_OTLP_PROTOCOL
           value: http/protobuf
         - name: PHOENIX_PROJECT_NAME
