@@ -42,9 +42,13 @@ spec:
     mode: deployment
     replicaCount: 1
     # The contrib image ships the otlphttp exporter and the debug
-    # exporter used in the pipeline below.
+    # exporter used in the pipeline below. Pin the tag explicitly: chart
+    # 0.122.0 defaults image.tag to 0.123.1, which was never published to
+    # Docker Hub (chart-image release-cadence mismatch). 0.123.0 exists
+    # and matches the chart's API expectations.
     image:
       repository: otel/opentelemetry-collector-contrib
+      tag: "0.123.0"
     # Disable the chart's preset config so our `config:` block below is
     # the only source of truth for receivers/exporters/pipelines.
     presets:
