@@ -55,6 +55,12 @@ spec:
     # agentgateway HTTPRoute below.
     service:
       type: ClusterIP
+    # Phoenix is mounted under /phoenix by the HTTPRoute below. Without
+    # this, the React UI emits asset URLs at /assets/* (root-relative) and
+    # the browser 404s every JS/CSS bundle — symptom is a blank white page.
+    # Maps to PHOENIX_HOST_ROOT_PATH; the chart prepends it to UI + API.
+    server:
+      hostRootPath: /phoenix
     # Disable Phoenix's built-in auth: simpler local UX, and the REST
     # API the integration test polls (/v1/projects/.../spans) becomes
     # token-free. Re-enable for any cluster reachable from outside KinD.
