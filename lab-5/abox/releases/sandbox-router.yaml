@@ -1,0 +1,80 @@
+# Sandbox Router — the reverse proxy that fronts ephemeral Agent Sandboxes.
+#
+# Why we need it: the upstream Agent Sandbox release ships only the
+# controller + CRDs (manifest.yaml, extensions.yaml). The k8s-agent-sandbox
+# Python SDK *also* requires a "Sandbox Router" deployment to tunnel HTTP
+# traffic into individual sandbox pods — `client.commands.run(...)` calls
+# fail with `services "sandbox-router-svc" not found` otherwise.
+#
+# Upstream ships the router as source only, under
+# clients/python/agentic-sandbox-client/sandbox-router/. We vendor that
+# source to lab-5/sandbox-router/ and publish a lab-scoped image via
+# .github/workflows/sandbox-router-image-lab5.yaml.
+#
+# The SDK port-forwards to `sandbox-router-svc` in the same namespace as
+# the SandboxClaim it created — `default` for the metrics walkthrough.
+# Both Service and Deployment live in `default` accordingly.
+#
+# Resources are scaled down from the upstream HA template (2 replicas +
+# topology spread) to a single replica suitable for KinD.
+apiVersion: v1
+kind: Service
+metadata:
+  name: sandbox-router-svc
+  namespace: default
+spec:
+  type: ClusterIP
+  selector:
+    app: sandbox-router
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sandbox-router
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sandbox-router
+  template:
+    metadata:
+      labels:
+        app: sandbox-router
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: router
+          image: ghcr.io/gartemiev/aire-course/lab-5/sandbox-router:0.1.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PROXY_TIMEOUT_SECONDS
+              value: "180"
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
