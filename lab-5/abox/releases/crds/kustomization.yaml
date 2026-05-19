@@ -7,3 +7,4 @@ resources:
   - kagent-crds.yaml
   - kmcp-crds.yaml
   - external-secrets-crds.yaml
+  - agent-sandbox-crds.yaml

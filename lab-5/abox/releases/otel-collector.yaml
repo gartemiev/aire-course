@@ -1,0 +1,90 @@
+# OpenTelemetry Collector deployment that fronts Phoenix for in-cluster
+# clients. See design.md §D2 for the rationale.
+#
+# Pipeline: OTLP in (gRPC :4317, HTTP :4318) → traces export to Phoenix
+# via OTLP/HTTP, metrics → debug exporter. Clients (time-mcp-server,
+# time-agent, sandboxes) write to
+#   http://otel-collector.observability.svc.cluster.local:4318
+# and never need to know about Phoenix's URL.
+#
+# Chart version chosen: 0.122.0 (latest stable opentelemetry-collector
+# Helm chart at the time the change landed). Bump via OpenSpec.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: otel-collector
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: oci://ghcr.io/open-telemetry/opentelemetry-helm-charts/opentelemetry-collector
+  ref:
+    tag: "0.122.0"
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: otel-collector
+  namespace: observability
+spec:
+  interval: 1h
+  releaseName: otel-collector
+  chartRef:
+    kind: OCIRepository
+    name: otel-collector
+    namespace: flux-system
+  install:
+    createNamespace: true
+  timeout: 5m
+  values:
+    # `mode: deployment` (not DaemonSet) — we don't need per-node
+    # collection for the lab. Single replica; design.md §"Risks" calls
+    # this an accepted trade-off.
+    mode: deployment
+    replicaCount: 1
+    # The contrib image ships the otlphttp exporter and the debug
+    # exporter used in the pipeline below.
+    image:
+      repository: otel/opentelemetry-collector-contrib
+    # Disable the chart's preset config so our `config:` block below is
+    # the only source of truth for receivers/exporters/pipelines.
+    presets:
+      logsCollection:
+        enabled: false
+      kubernetesAttributes:
+        enabled: false
+    config:
+      receivers:
+        otlp:
+          protocols:
+            grpc:
+              endpoint: 0.0.0.0:4317
+            http:
+              endpoint: 0.0.0.0:4318
+      processors:
+        batch: {}
+      exporters:
+        otlphttp/phoenix:
+          endpoint: http://phoenix.observability.svc.cluster.local:6006
+        debug:
+          verbosity: detailed
+      service:
+        pipelines:
+          traces:
+            receivers: [otlp]
+            processors: [batch]
+            exporters: [otlphttp/phoenix]
+          metrics:
+            receivers: [otlp]
+            processors: [batch]
+            exporters: [debug]
+    ports:
+      otlp:
+        enabled: true
+        containerPort: 4317
+        servicePort: 4317
+        protocol: TCP
+      otlp-http:
+        enabled: true
+        containerPort: 4318
+        servicePort: 4318
+        protocol: TCP

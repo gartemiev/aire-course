@@ -1,0 +1,110 @@
+# Arize Phoenix as the in-cluster trace backend for lab-5.
+#
+# Why self-host: the abox philosophy is reproducible local infra with no
+# external trace destinations. Phoenix's Helm chart ships under
+# oci://registry-1.docker.io/arizephoenix/phoenix-helm and we pin the chart
+# version explicitly so an upgrade is a normal OpenSpec change, not a
+# silent float to `latest`. See design.md §D1.
+#
+# Chart version chosen: 0.1.13 (latest stable at the time the change landed).
+# To bump, edit OCIRepository.spec.ref.tag below and update this comment.
+#
+# Storage: keep the chart's bundled Postgres with a PersistentVolumeClaim
+# backed by KinD's default StorageClass (`standard` / local-path). The PVC
+# survives `helm uninstall`; the README documents
+# `kubectl delete pvc -l app.kubernetes.io/instance=phoenix -n observability`
+# as the "reset Phoenix" step.
+#
+# Networking:
+#   - ClusterIP `phoenix.observability.svc.cluster.local:6006` for both
+#     OTLP/HTTP ingestion and the UI (Phoenix serves both on the same port).
+#     The OTel collector in releases/otel-collector.yaml forwards traces to
+#     this Service.
+#   - HTTPRoute below exposes the UI at `/phoenix` on the existing
+#     `agentgateway-external` Gateway. No TLS terminations, no auth — this
+#     is local-only.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: observability
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: phoenix
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: oci://registry-1.docker.io/arizephoenix/phoenix-helm
+  ref:
+    tag: "0.1.13"
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: phoenix
+  namespace: observability
+spec:
+  interval: 1h
+  releaseName: phoenix
+  chartRef:
+    kind: OCIRepository
+    name: phoenix
+    namespace: flux-system
+  install:
+    createNamespace: true
+  # Phoenix needs Postgres to come up and run migrations before its own
+  # readiness probe passes; the bundled Postgres pulls ~600MB so cold KinD
+  # boots are slow.
+  timeout: 10m
+  values:
+    # Bundled Postgres with a PVC backed by the cluster's default
+    # StorageClass. Phoenix retains projects/spans across pod restarts via
+    # this PVC.
+    postgresql:
+      enabled: true
+      persistence:
+        enabled: true
+        size: 8Gi
+    # Service stays as the chart's default ClusterIP on port 6006. The
+    # HTTPRoute below provides external access; no LoadBalancer needed.
+    server:
+      service:
+        type: ClusterIP
+---
+# Allow the HTTPRoute living in agentgateway-system to reference Services
+# in the observability namespace. Mirrors the kagent ReferenceGrant in
+# releases/kagent.yaml.
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: phoenix
+  namespace: observability
+spec:
+  from:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: agentgateway-system
+  to:
+    - group: ""
+      kind: Service
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: phoenix
+  namespace: observability
+spec:
+  parentRefs:
+    - name: agentgateway-external
+      namespace: agentgateway-system
+      sectionName: http
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /phoenix
+      backendRefs:
+        - name: phoenix
+          namespace: observability
+          port: 6006

@@ -1,0 +1,43 @@
+# Baseline SandboxTemplate referenced by the Agent Sandbox metrics
+# walkthrough (https://agent-sandbox.sigs.k8s.io/docs/sandbox/metrics/).
+#
+# The walkthrough creates a SandboxClaim against `python-sandbox-template` in
+# the `default` namespace, opens a tunnel, and runs
+# `opentelemetry-instrument python main.py` from a local venv. The template's
+# job is to be ready when the claim lands — i.e. a Python pod with the
+# Sandbox SDK tracing extras and the opentelemetry instrumentation packages
+# already installed so the operator can exec in and run code immediately
+# without a long `pip install` round-trip.
+#
+# Resources match design.md §D6 (200m CPU / 256Mi RAM): cheap to keep
+# around for the duration of the lab, fits comfortably in a 3-node KinD.
+apiVersion: extensions.agents.x-k8s.io/v1alpha1
+kind: SandboxTemplate
+metadata:
+  name: python-sandbox-template
+  namespace: default
+spec:
+  podTemplate:
+    spec:
+      containers:
+        - name: sandbox
+          image: python:3.12-slim
+          imagePullPolicy: IfNotPresent
+          # Install the Sandbox SDK tracing extras + OTel distro on first
+          # boot, then sleep so the pod stays Ready for `kubectl exec` /
+          # tunnel access. `opentelemetry-bootstrap -a install` adds the
+          # auto-instrumentation wheels documented in the metrics walkthrough.
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              pip install --no-cache-dir "k8s-agent-sandbox[tracing]" opentelemetry-distro
+              opentelemetry-bootstrap -a install
+              exec sleep infinity
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi

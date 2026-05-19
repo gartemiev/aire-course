@@ -1,0 +1,72 @@
+# Lab-5 copy of the lab-3 time-mcp-server, declared as a kmcp MCPServer CR.
+# The kmcp controller (bundled with kagent) reconciles this into a Deployment
+# and Service in the kagent namespace:
+#   - Deployment runs spec.deployment (image/cmd/args/env/port)
+#   - Service is named after metadata.name on spec.deployment.port
+#
+# Image is built and pushed by .github/workflows/time-mcp-image-lab5.yaml on
+# changes under lab-5/time-mcp-server/**, tagged from
+# `lab-5-time-mcp-<semver>` git tags (e.g. lab-5-time-mcp-0.1.0 → image tag
+# 0.1.0). Lab-scoped path (`aire-course/lab-5/...`) so the lab-3 image at
+# `aire-course/lab-3/...` is untouched.
+#
+# The generated Service (time-mcp.kagent.svc.cluster.local:3000) matches the
+# `time` target added to releases/agentgateway-mcp.yaml, so the existing
+# /mcp HTTPRoute reaches this server through the gateway. `discovery: disabled`
+# stops kmcp from auto-creating a RemoteMCPServer that bypasses the gateway —
+# agents must go through the gateway via the explicit RemoteMCPServer below.
+#
+# Tracing wiring (Phoenix / OpenInference):
+#   OTEL_EXPORTER_OTLP_ENDPOINT → otel-collector in observability ns
+#   OTEL_EXPORTER_OTLP_PROTOCOL → http/protobuf (matches collector OTLP/HTTP)
+#   PHOENIX_PROJECT_NAME        → groups spans in the Phoenix UI per service
+# The bootstrap in src/core/server.py reads these env vars and calls
+# `phoenix.otel.register(auto_instrument=True)` before any tool import, so
+# every MCP tool call emits an OpenInference span that joins the agent's
+# trace via the openinference-instrumentation-mcp context propagator.
+apiVersion: kagent.dev/v1alpha1
+kind: MCPServer
+metadata:
+  name: time-mcp
+  namespace: kagent
+  labels:
+    kagent.dev/discovery: disabled # gateway-routed only; do not auto-create RemoteMCPServer
+spec:
+  transportType: http
+  httpTransport:
+    targetPort: 3000
+    path: /mcp
+  deployment:
+    image: ghcr.io/gartemiev/aire-course/lab-5/time-mcp-server:0.1.0
+    imagePullPolicy: IfNotPresent
+    # Call the project's `dev-http` console script directly (installed into
+    # /app/.venv/bin/ by `uv sync` at build time, on PATH per the Dockerfile).
+    # The script forces --transport http and reads HOST/PORT from env.
+    cmd: dev-http
+    env:
+      HOST: "0.0.0.0"
+      PORT: "3000"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc.cluster.local:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      PHOENIX_PROJECT_NAME: time-mcp-server
+    port: 3000
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+---
+# Agents reach this server via the shared agentgateway /mcp route, not the
+# Service directly. Explicit because discovery is disabled on the MCPServer.
+apiVersion: kagent.dev/v1alpha2
+kind: RemoteMCPServer
+metadata:
+  name: time-mcp-via-gateway
+  namespace: kagent
+spec:
+  description: "Time tools, routed via agentgateway"
+  protocol: STREAMABLE_HTTP
+  url: http://agentgateway-external.agentgateway-system.svc.cluster.local/mcp
+  timeout: 30s

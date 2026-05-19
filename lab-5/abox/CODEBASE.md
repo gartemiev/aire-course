@@ -85,6 +85,25 @@ scripts/
 | kagent | `kagent` | AI agent runtime; exposes MCP server on `:8083`, UI on `:8080` |
 | HTTPRoute `kagent` | `kagent` | Routes `/api` → kagent MCP, `/` → kagent UI |
 | ReferenceGrant `kagent` | `kagent` | Allows the HTTPRoute to reference the gateway in a different namespace |
+| time-mcp-server (lab-5) | `kagent` | Custom MCP server; auto-traced via Phoenix/OpenInference |
+| time-agent (lab-5) | `kagent` | BYO kagent agent; client side of the unified MCP trace |
+| Phoenix | `observability` | Self-hosted trace backend; UI at `/phoenix` on the external gateway |
+| OpenTelemetry Collector | `observability` | OTLP gRPC `:4317` + HTTP `:4318`; forwards traces to Phoenix, debug-logs metrics |
+| Agent Sandbox controller | `agent-sandbox-system` | Reconciles `Sandbox`, `SandboxTemplate`, `SandboxClaim`, `SandboxWarmPool` |
+
+### Tracing env-var convention
+
+Every workload that emits OTel traces in this lab reads three env vars:
+
+| Env var | Value (in-cluster) | Purpose |
+|---|---|---|
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://otel-collector.observability.svc.cluster.local:4318` | Where to send OTLP — points at the collector, never at Phoenix directly |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` | `http/protobuf` | Matches the collector's OTLP/HTTP receiver |
+| `PHOENIX_PROJECT_NAME` | distinct per service, e.g. `time-agent` / `time-mcp-server` | Groups spans per service in the Phoenix UI |
+
+The Python bootstrap (`phoenix.otel.register(auto_instrument=True)`) reads
+these vars and falls back to localhost defaults when unset, so the same
+image runs unchanged against a local Phoenix during development.
 
 ---
 

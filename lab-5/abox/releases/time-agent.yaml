@@ -1,0 +1,76 @@
+# Lab-5 copy of the lab-3 time-agent, deployed as a kagent BYO Agent. The
+# container is the ADK time-agent wrapped in the A2A protocol via
+# app/a2a_app.py (uvicorn) — kagent creates a Deployment + Service from
+# spec.byo.deployment and re-exposes the agent through the controller at:
+#   :8083/api/a2a/kagent/time-agent/.well-known/agent.json
+#
+# Image is built and pushed by .github/workflows/time-agent-image-lab5.yaml
+# on changes under lab-5/time-agent/**, tagged from
+# `lab-5-time-agent-<semver>` git tags (e.g. lab-5-time-agent-0.1.0 → image
+# tag 0.1.0). Lab-scoped path (`aire-course/lab-5/...`) so the lab-3 image
+# at `aire-course/lab-3/...` stays untouched.
+#
+# Wiring (unchanged from lab-3 except for the lab-5 image tag and the
+# Phoenix/OTel env vars):
+#   - LLM goes to agentgateway /v1, which injects the real OpenAI key from
+#     aire-openai-token (see openai-credentials.yaml + agentgateway-llm.yaml).
+#   - MCP goes to agentgateway /mcp, which routes to the time-mcp Service
+#     in lab-5 (see agentgateway-mcp.yaml + time-mcp-server.yaml).
+#   - System prompt + tool rules live in app/agent.py.
+#
+# Tracing wiring (Phoenix / OpenInference):
+#   OTEL_EXPORTER_OTLP_ENDPOINT → otel-collector in observability ns
+#   OTEL_EXPORTER_OTLP_PROTOCOL → http/protobuf (matches collector OTLP/HTTP)
+#   PHOENIX_PROJECT_NAME        → "time-agent" so the Phoenix UI groups
+#                                 client-side spans separately from the
+#                                 server-side spans emitted by time-mcp-server.
+# The bootstrap in app/agent.py calls phoenix.otel.register(auto_instrument=True)
+# before `root_agent = Agent(...)` is constructed, so LiteLLM and MCP toolset
+# calls are auto-instrumented and the client→server trace context propagates
+# through openinference-instrumentation-mcp into the MCP server's span.
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: time-agent
+  namespace: kagent
+spec:
+  type: BYO
+  description: "Agent that answers time and timezone questions using the time MCP server."
+  byo:
+    deployment:
+      image: ghcr.io/gartemiev/aire-course/lab-5/time-agent:0.1.0
+      imagePullPolicy: IfNotPresent
+      env:
+        - name: MODEL_PROVIDER
+          value: openai
+        - name: OPENAI_MODEL
+          value: openai/gpt-4.1-mini
+        - name: OPENAI_API_BASE
+          value: http://agentgateway-external.agentgateway-system.svc.cluster.local/v1
+        - name: OPENAI_API_KEY
+          value: placeholder-gateway-injects-real-key
+        - name: TIME_MCP_URL
+          value: http://agentgateway-external.agentgateway-system.svc.cluster.local/mcp
+        - name: PORT
+          value: "8080"
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://otel-collector.observability.svc.cluster.local:4318
+        - name: OTEL_EXPORTER_OTLP_PROTOCOL
+          value: http/protobuf
+        - name: PHOENIX_PROJECT_NAME
+          value: time-agent
+        # Optional: extra HTTP headers added to every LLM / MCP request.
+        # Use when agentgateway routes on headers (tenancy, backend tier, etc.)
+        # rather than path alone. JSON dict; omit the env var entirely when no
+        # extra headers are needed (current OpenAI route only matches on /v1).
+        # - name: OPENAI_EXTRA_HEADERS
+        #   value: '{"X-Route-Tier":"premium"}'
+        # - name: MCP_EXTRA_HEADERS
+        #   value: '{"X-Tenant":"acme"}'
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 1
+          memory: 512Mi

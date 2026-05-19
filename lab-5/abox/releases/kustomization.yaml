@@ -8,3 +8,9 @@ resources:
   - agentgateway-mcp.yaml
   - openai-credentials.yaml
   - kagent.yaml
+  - agent-sandbox.yaml
+  - sandbox-template.yaml
+  - phoenix.yaml
+  - otel-collector.yaml
+  - time-mcp-server.yaml
+  - time-agent.yaml

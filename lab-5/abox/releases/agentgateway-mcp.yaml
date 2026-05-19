@@ -39,6 +39,16 @@ spec:
           # hostname against the system trust store". This is what we want
           # for a public HTTPS endpoint.
           tls: {}
+    - name: time
+      static:
+        # In-cluster MCPServer provisioned by releases/time-mcp-server.yaml.
+        # The kmcp controller creates Service `time-mcp` in `kagent` listening
+        # on port 3000; the FastMCP server serves StreamableHTTP at `/mcp`,
+        # which is the agentgateway default path for this protocol — no
+        # `path` override needed. No TLS: in-cluster plaintext.
+        host: time-mcp.kagent.svc.cluster.local
+        port: 3000
+        protocol: StreamableHTTP
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
