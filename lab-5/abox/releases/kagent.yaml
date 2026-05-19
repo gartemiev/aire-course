@@ -1,0 +1,140 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kagent
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: kagent
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: oci://ghcr.io/kagent-dev/kagent/helm/kagent
+  ref:
+    tag: "0.9.3"
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kagent
+  namespace: kagent
+spec:
+  interval: 1h
+  releaseName: kagent
+  # Flux's source-controller writes the OCI artifact revision as
+  # `0.9.3@sha256:<digest>` and helm-controller passes that to template
+  # rendering as `.Chart.Version = "0.9.3+<short-sha>"`. The `+` is illegal
+  # in Kubernetes label values, so resources fail to install with
+  # `metadata.labels: Invalid value: "0.9.3+..."`. This is independent of
+  # the chart version — every 0.9.x kagent OCI release hits it. Patch the
+  # rendered label back to a clean semver before apply.
+  postRenderers:
+  - kustomize:
+      patches:
+      - target:
+          labelSelector: app.kubernetes.io/instance=kagent
+        patch: |
+          - op: add
+            path: /metadata/labels/app.kubernetes.io~1version
+            value: "0.9.3"
+  dependsOn:
+    - name: kagent-crds
+      namespace: kagent
+    # 0.9.3 ships the kmcp controller as a subchart but its MCPServer CRD
+    # comes from a separate Helm chart we install in releases/crds/. Without
+    # this dependsOn the kmcp controller can come up before its CRD exists.
+    - name: kmcp-crds
+      namespace: kagent
+  chartRef:
+    kind: OCIRepository
+    name: kagent
+    namespace: flux-system
+  install:
+    createNamespace: true
+  # Bundled Postgres replaces SQLite in 0.9.3 and needs longer to come up
+  # behind the controller/UI on a cold KinD; lab-1 hit this on a smaller
+  # cluster with 900s, 600s is enough here.
+  timeout: 10m
+  values:
+    controller:
+      image:
+        tag: 0.9.3
+    tag: 0.9.3
+    ui:
+      image:
+        tag: 0.9.3
+    tools:
+      querydoc:
+        enabled: false
+    agents:
+      cilium-policy-agent:
+        enabled: false
+      cilium-manager-agent:
+        enabled: false
+      cilium-debug-agent:
+        enabled: false
+      istio-agent:
+        enabled: false
+      istio-policy-agent:
+        enabled: false
+      istio-manager-agent:
+        enabled: false
+    # All OpenAI traffic is routed through agentgateway. The real API key lives
+    # in the `aire-openai-token` Secret in agentgateway-system (synced from GCP
+    # Secret Manager via External Secrets); agentgateway overrides the
+    # Authorization header on every upstream call, so kagent's apiKey is just
+    # a non-empty placeholder.
+    providers:
+      default: openAI
+      openAI:
+        provider: OpenAI
+        model: gpt-4.1-mini
+        apiKeySecretRef: kagent-openai
+        apiKeySecretKey: OPENAI_API_KEY
+        apiKey: placeholder-routed-via-agentgateway
+        defaultHeaders:
+          x-provider: openai
+        config:
+          baseUrl: http://agentgateway-external.agentgateway-system.svc.cluster.local/v1
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: kagent
+  namespace: kagent
+spec:
+  from:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    namespace: kagent
+  to:
+  - group: ""
+    kind: Service
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: kagent
+  namespace: kagent
+spec:
+  parentRefs:
+  - name: agentgateway-external
+    namespace: agentgateway-system
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /api
+    backendRefs:
+    - name: kagent-controller
+      namespace: kagent
+      port: 8083
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+    backendRefs:
+    - name: kagent-ui
+      namespace: kagent
+      port: 8080

@@ -1,0 +1,33 @@
+# In kagent 0.9.2 the MCPServer CRD was extracted out of kagent-crds into the
+# standalone kmcp project. The kagent chart bundles the kmcp *controller* as a
+# subchart, but its CRD now ships as a separate Helm chart that we install
+# here so MCPServer CRs in releases/ reconcile cleanly.
+#
+# Version 0.2.8 matches the kmcp subchart version bundled in kagent 0.9.2 —
+# bump both together or the controller and CRD schema can diverge.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: kmcp-crds
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: oci://ghcr.io/kagent-dev/kmcp/helm/kmcp-crds
+  ref:
+    tag: "0.2.8"
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kmcp-crds
+  namespace: kagent
+spec:
+  interval: 1h
+  releaseName: kmcp-crds
+  chartRef:
+    kind: OCIRepository
+    name: kmcp-crds
+    namespace: flux-system
+  install:
+    createNamespace: false
+    crds: CreateReplace
