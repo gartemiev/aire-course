@@ -8,4 +8,3 @@ resources:
   - agentgateway-mcp.yaml
   - openai-credentials.yaml
   - kagent.yaml
-  - mcp-governance.yaml
