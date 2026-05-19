@@ -10,6 +10,7 @@ resources:
   - kagent.yaml
   - agent-sandbox.yaml
   - sandbox-template.yaml
+  - sandbox-router.yaml
   - phoenix.yaml
   - otel-collector.yaml
   - time-mcp-server.yaml

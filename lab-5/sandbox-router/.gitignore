@@ -1,0 +1,12 @@
+# Vendored from kubernetes-sigs/agent-sandbox @ main —
+# clients/python/agentic-sandbox-client/sandbox-router/. Keep additions
+# minimal; matches the other lab-5 image dirs.
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.DS_Store
+.idea/
+.vscode/

@@ -10,7 +10,7 @@ on:
     branches: [main]
     paths:
       - 'lab-5/time-agent/**'
-      - '.github/workflows/time-agent-image-lab3.yaml'
+      - '.github/workflows/time-agent-image-lab5.yaml'
     tags:
       - 'lab-5-time-agent-*'
 

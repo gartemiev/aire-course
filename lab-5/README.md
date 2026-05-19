@@ -89,6 +89,12 @@ manifests at tag `v0.4.6`:
 - Baseline template:
   [`lab-5/abox/releases/sandbox-template.yaml`](abox/releases/sandbox-template.yaml)
   (`python-sandbox-template` in `default`).
+- Sandbox Router: the `k8s-agent-sandbox` SDK tunnels HTTP traffic into
+  individual sandboxes via a separate `sandbox-router-svc`. Upstream
+  ships only source under `clients/python/agentic-sandbox-client/sandbox-router/`,
+  so we vendor it to [`lab-5/sandbox-router/`](sandbox-router/), build via
+  [`time-mcp-image-lab5.yaml`-style CI](../.github/workflows/sandbox-router-image-lab5.yaml),
+  and deploy via [`lab-5/abox/releases/sandbox-router.yaml`](abox/releases/sandbox-router.yaml).
 
 Run the metrics walkthrough from a venv:
 
