@@ -41,6 +41,11 @@ spec:
     # this an accepted trade-off.
     mode: deployment
     replicaCount: 1
+    # Without this the chart names the Service
+    # `otel-collector-opentelemetry-collector` (release + chart name),
+    # which is unwieldy for env var injection. Override so workloads can
+    # point at `otel-collector.observability.svc.cluster.local`.
+    fullnameOverride: otel-collector
     # The contrib image ships the otlphttp exporter and the debug
     # exporter used in the pipeline below. Pin the tag explicitly: chart
     # 0.122.0 defaults image.tag to 0.123.1, which was never published to
@@ -68,7 +73,10 @@ spec:
         batch: {}
       exporters:
         otlphttp/phoenix:
-          endpoint: http://phoenix.observability.svc.cluster.local:6006
+          # Phoenix chart renders the Service as `<release>-svc` (hardcoded
+          # suffix in the phoenix-helm `phoenix.service` template helper).
+          # Keep in sync with the HTTPRoute backendRef in phoenix.yaml.
+          endpoint: http://phoenix-svc.observability.svc.cluster.local:6006
         debug:
           verbosity: detailed
       service:

@@ -42,7 +42,7 @@ namespace can write traces without traversing the gateway.
 #### Scenario: ClusterIP Service is reachable on the documented port
 
 - **WHEN** any pod runs `curl -sS -o /dev/null -w "%{http_code}" -X POST
-  http://phoenix.observability.svc.cluster.local:6006/v1/traces -H "Content-Type:
+  http://phoenix-svc.observability.svc.cluster.local:6006/v1/traces -H "Content-Type:
   application/x-protobuf" --data-binary @/dev/null`
 - **THEN** the response status SHALL be `200` or `400` (proto parse error),
   never a connection error such as `Connection refused`
@@ -97,7 +97,7 @@ The cluster SHALL run an OpenTelemetry Collector deployed via the upstream Helm 
 - **WHEN** `lab-5/abox/releases/otel-collector.yaml` is read
 - **THEN** the Helm chart version SHALL be a concrete semver string
 - **AND** the `config.exporters.otlphttp/phoenix.endpoint` value SHALL equal
-  `http://phoenix.observability.svc.cluster.local:6006`
+  `http://phoenix-svc.observability.svc.cluster.local:6006`
 - **AND** the `config.service.pipelines.traces.exporters` list SHALL include
   `otlphttp/phoenix`
 

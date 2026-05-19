@@ -1,28 +1,22 @@
 # Arize Phoenix as the in-cluster trace backend for lab-5.
 #
-# Why self-host: the abox philosophy is reproducible local infra with no
-# external trace destinations. Phoenix's Helm chart ships under
-# oci://registry-1.docker.io/arizephoenix/phoenix-helm and we pin the chart
-# version explicitly so an upgrade is a normal OpenSpec change, not a
-# silent float to `latest`. See design.md §D1.
+# Source: oci://registry-1.docker.io/arizephoenix/phoenix-helm
+# Pinned to 7.0.11 — confirmed published 2026-05-19 on Docker Hub.
+# Bumping the version is a normal OpenSpec change (not a silent float).
 #
-# Chart version chosen: 0.1.13 (latest stable at the time the change landed).
-# To bump, edit OCIRepository.spec.ref.tag below and update this comment.
+# The chart bundles Postgres (via a sub-chart) and exposes:
+#   - 6006 — Phoenix UI **and** OTLP/HTTP trace ingestion (combined port)
+#   - 4317 — OTLP/gRPC trace ingestion
+# The rendered Service is named `<release>-svc` (the chart hardcodes the
+# `-svc` suffix in templates/_helpers.tpl), so the HTTPRoute and the OTel
+# collector exporter both target `phoenix-svc.observability.svc.cluster.local`.
 #
-# Storage: keep the chart's bundled Postgres with a PersistentVolumeClaim
-# backed by KinD's default StorageClass (`standard` / local-path). The PVC
-# survives `helm uninstall`; the README documents
-# `kubectl delete pvc -l app.kubernetes.io/instance=phoenix -n observability`
-# as the "reset Phoenix" step.
+# Auth is disabled — this is a local KinD lab; the gateway has no auth either,
+# and disabling Phoenix auth keeps the `/v1/projects/.../spans` REST API
+# usable from the integration test without juggling tokens.
 #
-# Networking:
-#   - ClusterIP `phoenix.observability.svc.cluster.local:6006` for both
-#     OTLP/HTTP ingestion and the UI (Phoenix serves both on the same port).
-#     The OTel collector in releases/otel-collector.yaml forwards traces to
-#     this Service.
-#   - HTTPRoute below exposes the UI at `/phoenix` on the existing
-#     `agentgateway-external` Gateway. No TLS terminations, no auth — this
-#     is local-only.
+# Reset Phoenix data:
+#   kubectl delete pvc -n observability -l app.kubernetes.io/instance=phoenix
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -37,7 +31,7 @@ spec:
   interval: 1h
   url: oci://registry-1.docker.io/arizephoenix/phoenix-helm
   ref:
-    tag: "0.1.13"
+    tag: "7.0.11"
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -53,24 +47,23 @@ spec:
     namespace: flux-system
   install:
     createNamespace: true
-  # Phoenix needs Postgres to come up and run migrations before its own
-  # readiness probe passes; the bundled Postgres pulls ~600MB so cold KinD
-  # boots are slow.
-  timeout: 10m
+  # Phoenix + bundled Postgres pull large images on first reconcile;
+  # KinD on Apple Silicon can take a while.
+  timeout: 15m
   values:
-    # Bundled Postgres with a PVC backed by the cluster's default
-    # StorageClass. Phoenix retains projects/spans across pod restarts via
-    # this PVC.
+    # Pull the Phoenix UI on ClusterIP — external access is via the
+    # agentgateway HTTPRoute below.
+    service:
+      type: ClusterIP
+    # Disable Phoenix's built-in auth: simpler local UX, and the REST
+    # API the integration test polls (/v1/projects/.../spans) becomes
+    # token-free. Re-enable for any cluster reachable from outside KinD.
+    auth:
+      enableAuth: false
+    # Bundled Postgres sub-chart (defaults are fine: 20Gi PVC on the
+    # cluster's default StorageClass, postgres/postgres credentials).
     postgresql:
       enabled: true
-      persistence:
-        enabled: true
-        size: 8Gi
-    # Service stays as the chart's default ClusterIP on port 6006. The
-    # HTTPRoute below provides external access; no LoadBalancer needed.
-    server:
-      service:
-        type: ClusterIP
 ---
 # Allow the HTTPRoute living in agentgateway-system to reference Services
 # in the observability namespace. Mirrors the kagent ReferenceGrant in
@@ -105,6 +98,9 @@ spec:
             type: PathPrefix
             value: /phoenix
       backendRefs:
-        - name: phoenix
+        # Chart renders the Service as `<release>-svc`, hardcoded in the
+        # `phoenix.service` template helper. Keep this name in sync if you
+        # ever set `nameOverride` / `fullnameOverride`.
+        - name: phoenix-svc
           namespace: observability
           port: 6006
