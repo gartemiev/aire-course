@@ -72,10 +72,16 @@ spec:
         #   value: '{"X-Route-Tier":"premium"}'
         # - name: MCP_EXTRA_HEADERS
         #   value: '{"X-Tenant":"acme"}'
+      # Phoenix tracing (auto-instrumentation) + LiteLLM + ADK + MCP toolset together
+      # easily blow past 512Mi while handling a single request, so the pod was getting
+      # OOMKilled (exit 137) mid-response. The kagent UI then showed only the
+      # streamed tool-call JSON ({"tool":"get_current_time",...}) and the
+      # follow-up tool result / final answer never arrived. Bumped limits to give
+      # request processing enough headroom.
       resources:
         requests:
           cpu: 100m
-          memory: 128Mi
+          memory: 384Mi
         limits:
           cpu: 1
-          memory: 512Mi
+          memory: 1Gi
