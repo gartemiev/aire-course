@@ -1,0 +1,60 @@
+# MCP data plane on top of the existing agentgateway-external Gateway.
+#
+# Mirrors lab-3's agentgateway-mcp.yaml in shape but the target is the *public*
+# DeepWiki MCP server, not an in-cluster Service. Routing every external MCP
+# call through agentgateway has two payoffs:
+#   1. The agent Pod talks plain HTTP to a stable in-cluster hostname; TLS to
+#      DeepWiki is terminated by the gateway. Adding more public MCP servers
+#      becomes a single new `targets[]` entry, not a per-agent code change.
+#   2. Inventory and the agentgateway UI can observe / log every MCP request
+#      through the same chokepoint they already see LLM traffic on.
+#
+# Source for `host` + `port` + `protocol` decisions:
+#   curl -i https://mcp.deepwiki.com/mcp  → JSON-RPC over StreamableHTTP at /mcp.
+# `policies.tls: {}` initiates TLS to the upstream using the agentgateway
+# Pod's system trust store (per BackendTLS docstring in upstream agentgateway
+# repo). No mTLS, no cert overrides — DeepWiki's public LetsEncrypt chain works.
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayBackend
+metadata:
+  name: mcp
+  namespace: agentgateway-system
+spec:
+  mcp:
+    # Stateful so the gateway pins a session's mcp-session-id to a single
+    # target replica. With one target this is effectively a no-op, but it
+    # matches lab-3 and is the safe default if we ever add a second target.
+    sessionRouting: Stateful
+    targets:
+    - name: deepwiki
+      static:
+        host: mcp.deepwiki.com
+        port: 443
+        # StreamableHTTP is the protocol DeepWiki speaks; agentgateway's
+        # default path for this protocol is `/mcp`, which matches DeepWiki's
+        # public endpoint, so we don't override `path`.
+        protocol: StreamableHTTP
+        policies:
+          # Empty tls block = "originate TLS to the backend, verify cert and
+          # hostname against the system trust store". This is what we want
+          # for a public HTTPS endpoint.
+          tls: {}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: mcp-router
+  namespace: agentgateway-system
+spec:
+  parentRefs:
+  - name: agentgateway-external
+    sectionName: http
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /mcp
+    backendRefs:
+    - group: agentgateway.dev
+      kind: AgentgatewayBackend
+      name: mcp

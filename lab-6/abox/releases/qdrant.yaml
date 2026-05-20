@@ -1,0 +1,125 @@
+# Qdrant — vector database used by lab agents for embeddings/RAG.
+#
+# Upstream Helm chart: https://artifacthub.io/packages/helm/qdrant/qdrant
+# Repo: https://qdrant.github.io/qdrant-helm (HTTPS index, not OCI).
+#
+# Ports exposed by the Service (all ClusterIP by default):
+#   :6333  HTTP REST API
+#   :6334  gRPC API
+#   :6335  P2P (cluster mode)
+#
+# Default PVC is 10Gi RWO; single replica. No HTTPRoute — Qdrant stays
+# cluster-internal and is reached by other workloads via the in-cluster
+# Service DNS (qdrant.qdrant.svc.cluster.local).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: qdrant
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: qdrant
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://qdrant.github.io/qdrant-helm
+---
+# API keys are sourced from GCP Secret Manager via ESO. The GCP secret
+# `aire_qdrant_api_key` holds a JSON document with two fields (api-key,
+# read-only-api-key); ESO projects each into a separate data key in the
+# materialized K8s Secret. ClusterSecretStore `gcp-secrets-manager` is
+# defined in releases/openai-credentials.yaml.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: aire-qdrant-api-key
+  namespace: qdrant
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: gcp-secrets-manager
+    kind: ClusterSecretStore
+  target:
+    name: aire-qdrant-api-key
+    creationPolicy: Owner
+  data:
+    - secretKey: api-key
+      remoteRef:
+        key: aire_qdrant_api_key
+        property: api-key
+    - secretKey: read-only-api-key
+      remoteRef:
+        key: aire_qdrant_api_key
+        property: read-only-api-key
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: qdrant
+  namespace: qdrant
+spec:
+  interval: 1h
+  releaseName: qdrant
+  # The qdrant chart resolves apiKey.valueFrom via Helm's `lookup` at render
+  # time — it reads the source Secret and bakes the literal value into its
+  # own qdrant-apikey Secret + local.yaml. So external-secrets must be up
+  # and reconciling before this HelmRelease renders, or the apiKey ends up
+  # empty. dependsOn guarantees the operator; ESO's own sync of
+  # aire-qdrant-api-key still races on first install — run
+  # `flux reconcile helmrelease qdrant -n qdrant --force` once after the
+  # ExternalSecret reports SecretSynced.
+  dependsOn:
+    - name: external-secrets
+      namespace: external-secrets
+  chart:
+    spec:
+      chart: qdrant
+      version: "1.18.0"
+      sourceRef:
+        kind: HelmRepository
+        name: qdrant
+        namespace: flux-system
+  install:
+    createNamespace: false   # Namespace is declared above; HelmRelease must not race it.
+  values:
+    replicaCount: 1
+    image:
+      repository: docker.io/qdrant/qdrant
+      tag: "v1.18.0"
+      pullPolicy: IfNotPresent
+    service:
+      type: ClusterIP
+    # Auth: read both keys from the ESO-materialized Secret. The chart's
+    # `lookup` resolves these at render time and renders /qdrant/config/
+    # local.yaml with `service.api_key` and `service.read_only_api_key`.
+    apiKey:
+      valueFrom:
+        secretKeyRef:
+          name: aire-qdrant-api-key
+          key: api-key
+    readOnlyApiKey:
+      valueFrom:
+        secretKeyRef:
+          name: aire-qdrant-api-key
+          key: read-only-api-key
+    persistence:
+      size: 10Gi
+      # KinD ships a `standard` StorageClass backed by rancher.io/local-path.
+      # Pin explicitly so the PVC doesn't silently break if the cluster's
+      # default StorageClass changes.
+      storageClassName: standard
+    # Chart leaves resources unset (no requests, no limits). On a KinD lab
+    # node that means qdrant can starve other pods during ingest bursts,
+    # and the scheduler has no signal for placement. Modest floor + ceiling.
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 1Gi
+    # No Prometheus in this lab — keep the ServiceMonitor off so the chart
+    # doesn't try to render against a missing monitoring.coreos.com CRD.
+    metrics:
+      serviceMonitor:
+        enabled: false

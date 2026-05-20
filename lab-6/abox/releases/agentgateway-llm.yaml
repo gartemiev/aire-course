@@ -1,0 +1,58 @@
+# OpenAI-only LLM data plane on top of the existing agentgateway-external Gateway.
+# Every kagent LLM call hits this HTTPRoute on the gateway; the matching
+# AgentgatewayBackend rewrites the Authorization header with the real OpenAI
+# key from `aire-openai-token` (materialized by the ExternalSecret in
+# openai-credentials.yaml). This way the real key never leaves
+# agentgateway-system and kagent's apiKeySecret is a placeholder.
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayBackend
+metadata:
+  name: openai
+  namespace: agentgateway-system
+spec:
+  ai:
+    groups:
+    - providers:
+      - name: openai
+        openai:
+          model: gpt-4.1-mini
+        policies:
+          auth:
+            secretRef:
+              name: aire-openai-token
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: llm-router
+  namespace: agentgateway-system
+spec:
+  parentRefs:
+  - name: agentgateway-external
+    sectionName: http
+  rules:
+  - name: openai
+    matches:
+    - path:
+        type: PathPrefix
+        value: /v1
+    backendRefs:
+    - group: agentgateway.dev
+      kind: AgentgatewayBackend
+      name: openai
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayPolicy
+metadata:
+  name: llm-router-cors
+  namespace: agentgateway-system
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: llm-router
+  traffic:
+    cors:
+      allowOrigins: ["*"]
+      allowHeaders: ["*"]
+      allowMethods: ["GET", "POST", "OPTIONS"]
