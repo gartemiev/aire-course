@@ -35,16 +35,16 @@ def test_tool(message: str) -> str:
             # Test discovery
             server = DynamicMCPServer(name="Test", tools_dir=str(tools_dir))
 
-            # Load tools - this should work without raising SystemExit
+            # Load tools - this should work without raising
             try:
                 server.load_tools()
                 # If we get here, it means loading succeeded
                 assert True
-            except SystemExit:
+            except RuntimeError:
                 pytest.fail("Tool loading failed")
 
     def test_invalid_tool_fails_fast(self) -> None:
-        """Test that invalid tools cause the server to exit."""
+        """Test that invalid tools cause load_tools to raise."""
         with tempfile.TemporaryDirectory() as temp_dir:
             tools_dir = Path(temp_dir) / "tools"
             tools_dir.mkdir()
@@ -57,8 +57,9 @@ def test_tool(message: str) -> str:
 
             server = DynamicMCPServer(name="Test", tools_dir=str(tools_dir))
 
-            # This should cause SystemExit due to fail-fast behavior
-            with pytest.raises(SystemExit):
+            # Fail-fast: load_tools raises RuntimeError; main.py turns that
+            # into a non-zero exit.
+            with pytest.raises(RuntimeError):
                 server.load_tools()
 
     def test_tool_without_matching_function(self) -> None:
@@ -77,8 +78,9 @@ def wrong_name(message: str) -> str:
 
             server = DynamicMCPServer(name="Test", tools_dir=str(tools_dir))
 
-            # This should cause SystemExit due to fail-fast behavior
-            with pytest.raises(SystemExit):
+            # Fail-fast: load_tools raises RuntimeError when a tool file
+            # registers no tools.
+            with pytest.raises(RuntimeError):
                 server.load_tools()
 
     def test_empty_tools_directory(self) -> None:

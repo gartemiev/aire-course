@@ -14,19 +14,32 @@
 
 
 import os
+from contextlib import asynccontextmanager
 
 import httpx
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import StreamingResponse
-
-# Initialize the FastAPI application
-app = FastAPI()
 
 # Configuration
 DEFAULT_SANDBOX_PORT = 8888
 DEFAULT_NAMESPACE = "default"
 DEFAULT_PROXY_TIMEOUT = 180.0
 DEFAULT_CLUSTER_DOMAIN = "cluster.local"
+
+# RFC 7230 §6.1 hop-by-hop headers — must not be forwarded by intermediaries.
+# We strip these in both directions plus Host (request) and Content-Length /
+# Content-Encoding (response) so StreamingResponse can re-frame the body
+# without the client trusting upstream's length/encoding headers.
+HOP_BY_HOP_HEADERS = frozenset({
+    "connection",
+    "keep-alive",
+    "proxy-authenticate",
+    "proxy-authorization",
+    "te",
+    "trailers",
+    "transfer-encoding",
+    "upgrade",
+})
 
 
 def _get_proxy_timeout() -> float:
@@ -59,10 +72,22 @@ def _get_cluster_domain() -> str:
 
 cluster_domain = _get_cluster_domain()
 proxy_timeout = _get_proxy_timeout()
-client = httpx.AsyncClient(timeout=proxy_timeout)
 
 print(f"Sandbox router configured with proxy timeout: {proxy_timeout}s")
 print(f"Sandbox router configured with cluster_domain: {cluster_domain}")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Single shared AsyncClient: connection pooling + a tidy aclose() on
+    # shutdown so we don't leak sockets when uvicorn restarts under
+    # `--reload` or rolls during a Deployment update.
+    async with httpx.AsyncClient(timeout=proxy_timeout) as client:
+        app.state.client = client
+        yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 @app.get("/healthz")
@@ -109,9 +134,15 @@ async def proxy_request(request: Request, full_path: str):
     print(f"Proxying request for sandbox '{sandbox_id}' to URL: {target_url}")
 
     try:
-        headers = {key: value for (
-            key, value) in request.headers.items() if key.lower() != 'host'}
+        # Strip Host (httpx will set it for the new target) and hop-by-hop
+        # headers (RFC 7230 §6.1) from the outbound request.
+        headers = {
+            key: value
+            for (key, value) in request.headers.items()
+            if key.lower() != "host" and key.lower() not in HOP_BY_HOP_HEADERS
+        }
 
+        client = request.app.state.client
         req = client.build_request(
             method=request.method,
             url=target_url,
@@ -121,10 +152,22 @@ async def proxy_request(request: Request, full_path: str):
 
         resp = await client.send(req, stream=True)
 
+        # Strip hop-by-hop headers from the upstream response. Also drop
+        # Content-Length / Content-Encoding: httpx decodes any transport
+        # encoding before aiter_bytes() yields, and StreamingResponse will
+        # re-frame the body for the downstream client, so the upstream
+        # values no longer describe what we're sending.
+        response_headers = {
+            key: value
+            for (key, value) in resp.headers.items()
+            if key.lower() not in HOP_BY_HOP_HEADERS
+            and key.lower() not in {"content-length", "content-encoding"}
+        }
+
         return StreamingResponse(
             content=resp.aiter_bytes(),
             status_code=resp.status_code,
-            headers=resp.headers
+            headers=response_headers
         )
     except httpx.ConnectError as e:
         print(

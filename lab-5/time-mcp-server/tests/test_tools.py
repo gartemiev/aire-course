@@ -32,8 +32,8 @@ class TestToolLoading:
         try:
             server.load_tools()
             assert True  # If we get here, loading succeeded
-        except SystemExit:
-            pytest.fail("Tool loading failed - server exited")
+        except RuntimeError:
+            pytest.fail("Tool loading failed")
 
     def test_loaded_tools_count(self) -> None:
         """Test that expected tools are loaded."""

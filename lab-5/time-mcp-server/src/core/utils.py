@@ -1,9 +1,11 @@
 """Shared utilities for time-mcp-server MCP server."""
 
-import os
+import logging
 from typing import Any
 
 import yaml
+
+logger = logging.getLogger(__name__)
 
 
 def load_config(config_path: str) -> dict[str, Any]:
@@ -21,7 +23,7 @@ def load_config(config_path: str) -> dict[str, Any]:
     except FileNotFoundError:
         return {}
     except Exception as e:
-        print(f"Error loading config from {config_path}: {e}")
+        logger.error("Error loading config from %s: %s", config_path, e)
         return {}
 
 
@@ -52,16 +54,3 @@ def get_tool_config(tool_name: str) -> dict[str, Any]:
     if isinstance(tool_config, dict):
         return tool_config
     return {}
-
-
-def get_env_var(key: str, default: str = "") -> str:
-    """Get environment variable with fallback.
-
-    Args:
-        key: Environment variable key
-        default: Default value if not found
-
-    Returns:
-        Environment variable value or default
-    """
-    return os.environ.get(key, default)

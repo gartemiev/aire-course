@@ -5,11 +5,6 @@
 # back to one target keeps the surfaced names un-prefixed
 # (e.g. `get_current_time` rather than `time_get_current_time`) and lets the
 # agent's tool_filter / system prompt reference the bare MCP tool names.
-#
-# If we need to re-add a public MCP server (DeepWiki etc.) without breaking
-# the agent, do it under a *separate* AgentgatewayBackend + HTTPRoute (e.g.
-# /mcp/deepwiki) instead of adding it back into this `targets[]` list — that
-# preserves the single-target invariant and keeps tool names stable.
 apiVersion: agentgateway.dev/v1alpha1
 kind: AgentgatewayBackend
 metadata:

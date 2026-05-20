@@ -19,6 +19,8 @@ from fastmcp import FastMCP
 
 from .utils import load_config
 
+logger = logging.getLogger(__name__)
+
 # Global FastMCP instance for tools to import
 mcp: FastMCP = FastMCP(name="Dynamic Server")
 
@@ -101,12 +103,18 @@ class DynamicMCPServer:
         # load_dotenv will search for a .env file and load it.
         # It does not fail if the file is not found.
         if load_dotenv(override=True):
-            logging.info("Loaded environment variables from .env file")
+            logger.info("Loaded environment variables from .env file")
 
     def load_tools(self) -> None:
-        """Discover and load all tools from the tools directory."""
+        """Discover and load all tools from the tools directory.
+
+        Raises:
+            RuntimeError: if any tool file fails to import or registers no
+                tools. Caller (main.py) catches this and exits non-zero so
+                the server fails fast on bad tool definitions.
+        """
         if not self.tools_dir.exists():
-            print(f"Tools directory {self.tools_dir} does not exist")
+            logger.warning("Tools directory %s does not exist", self.tools_dir)
             return
 
         # Find all Python files in tools directory
@@ -114,7 +122,7 @@ class DynamicMCPServer:
         tool_files = [f for f in tool_files if f.name != "__init__.py"]
 
         if not tool_files:
-            logging.warning(f"No tool files found in {self.tools_dir}")
+            logger.warning("No tool files found in %s", self.tools_dir)
             return
 
         loaded_count = 0
@@ -134,28 +142,30 @@ class DynamicMCPServer:
                     if tools_after > tools_before:
                         self.loaded_tools.append(tool_name)
                         loaded_count += 1
-                        logging.info(f"Loaded tool module: {tool_name}")
+                        logger.info("Loaded tool module: %s", tool_name)
                     else:
-                        logging.error(
-                            f"Tool file {tool_name} did not register any tools"
+                        logger.error(
+                            "Tool file %s did not register any tools", tool_name
                         )
                         has_errors = True
                 else:
-                    logging.error(f"Failed to load tool module: {tool_name}")
+                    logger.error("Failed to load tool module: %s", tool_name)
                     has_errors = True
 
             except Exception as e:
-                logging.error(f"Error loading tool {tool_file.name}: {e}")
+                logger.error("Error loading tool %s: %s", tool_file.name, e)
                 has_errors = True
 
         # Fail fast - if any tool fails to load, stop the server
         if has_errors:
-            sys.exit(1)
+            raise RuntimeError(
+                f"One or more tools in {self.tools_dir} failed to load"
+            )
 
-        logging.info(f"📦 Successfully loaded {loaded_count} tools")
+        logger.info("📦 Successfully loaded %d tools", loaded_count)
 
         if loaded_count == 0:
-            logging.warning("No tools loaded. Server starting without tools.")
+            logger.warning("No tools loaded. Server starting without tools.")
 
     def _import_tool_module(self, tool_file: Path, tool_name: str) -> bool:
         """Import a tool module, which auto-registers tools via decorators.
@@ -184,7 +194,7 @@ class DynamicMCPServer:
             return True
 
         except Exception as e:
-            print(f"Error importing {tool_file}: {e}")
+            logger.error("Error importing %s: %s", tool_file, e)
             return False
 
     def get_tools_sync(self) -> dict[str, Any]:

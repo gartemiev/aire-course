@@ -1,12 +1,11 @@
 """Get_current_time tool for MCP server.
 """
+from datetime import datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
 from mcp.types import ToolAnnotations
 
 from core.server import mcp, tracer
-from core.utils import get_tool_config
-
-from datetime import datetime
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 @mcp.tool(

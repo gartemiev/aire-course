@@ -60,10 +60,6 @@ USER mcpuser
 # Expose port (if needed for HTTP transport)
 EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import src.main; print('healthy')"
-
 # Set environment variables
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
