@@ -38,7 +38,7 @@ spec:
   description: "Agent that answers time and timezone questions using the time MCP server."
   byo:
     deployment:
-      image: ghcr.io/gartemiev/aire-course/lab-5/time-agent:0.1.1
+      image: ghcr.io/gartemiev/aire-course/lab-5/time-agent:0.1.2
       imagePullPolicy: IfNotPresent
       env:
         - name: MODEL_PROVIDER

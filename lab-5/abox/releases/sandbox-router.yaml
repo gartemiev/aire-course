@@ -52,7 +52,7 @@ spec:
         runAsGroup: 1000
       containers:
         - name: router
-          image: ghcr.io/gartemiev/aire-course/lab-5/sandbox-router:0.1.0
+          image: ghcr.io/gartemiev/aire-course/lab-5/sandbox-router:0.1.1
           imagePullPolicy: IfNotPresent
           env:
             - name: PROXY_TIMEOUT_SECONDS
